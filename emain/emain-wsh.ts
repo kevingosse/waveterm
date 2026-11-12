@@ -39,11 +39,6 @@ export class ElectronWshClientType extends WshClient {
         }).show();
     }
 
-    // `wsh version -v` still asks Electron for the update channel; kept until the backend stops calling it.
-    async handle_getupdatechannel(rh: RpcResponseHelper): Promise<string> {
-        return "none";
-    }
-
     async handle_focuswindow(rh: RpcResponseHelper, windowId: string) {
         console.log(`focuswindow ${windowId}`);
         const fullConfig = await RpcApi.GetFullConfigCommand(ElectronWshClient);

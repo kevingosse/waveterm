@@ -53,12 +53,6 @@ const (
 	ConfigKey_WebDefaultUrl                  = "web:defaulturl"
 	ConfigKey_WebDefaultSearch               = "web:defaultsearch"
 
-	ConfigKey_AutoUpdateClear                = "autoupdate:*"
-	ConfigKey_AutoUpdateEnabled              = "autoupdate:enabled"
-	ConfigKey_AutoUpdateIntervalMs           = "autoupdate:intervalms"
-	ConfigKey_AutoUpdateInstallOnQuit        = "autoupdate:installonquit"
-	ConfigKey_AutoUpdateChannel              = "autoupdate:channel"
-
 	ConfigKey_MarkdownFontSize               = "markdown:fontsize"
 	ConfigKey_MarkdownFixedFontSize          = "markdown:fixedfontsize"
 
@@ -68,9 +62,6 @@ const (
 	ConfigKey_TabPreset                      = "tab:preset"
 	ConfigKey_TabConfirmClose                = "tab:confirmclose"
 	ConfigKey_TabBackground                  = "tab:background"
-
-	ConfigKey_WidgetClear                    = "widget:*"
-	ConfigKey_WidgetShowHelp                 = "widget:showhelp"
 
 	ConfigKey_WindowClear                    = "window:*"
 	ConfigKey_WindowFullscreenOnLaunch       = "window:fullscreenonlaunch"

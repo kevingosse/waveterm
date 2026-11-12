@@ -84,12 +84,6 @@ type SettingsType struct {
 	WebDefaultUrl          string `json:"web:defaulturl,omitempty"`
 	WebDefaultSearch       string `json:"web:defaultsearch,omitempty"`
 
-	AutoUpdateClear         bool    `json:"autoupdate:*,omitempty"`
-	AutoUpdateEnabled       bool    `json:"autoupdate:enabled,omitempty"`
-	AutoUpdateIntervalMs    float64 `json:"autoupdate:intervalms,omitempty"`
-	AutoUpdateInstallOnQuit bool    `json:"autoupdate:installonquit,omitempty"`
-	AutoUpdateChannel       string  `json:"autoupdate:channel,omitempty"`
-
 	MarkdownFontSize      float64 `json:"markdown:fontsize,omitempty"`
 	MarkdownFixedFontSize float64 `json:"markdown:fixedfontsize,omitempty"`
 
@@ -99,9 +93,6 @@ type SettingsType struct {
 	TabPreset       string `json:"tab:preset,omitempty"`
 	TabConfirmClose bool   `json:"tab:confirmclose,omitempty"`
 	TabBackground   string `json:"tab:background,omitempty"`
-
-	WidgetClear    bool  `json:"widget:*,omitempty"`
-	WidgetShowHelp *bool `json:"widget:showhelp,omitempty"`
 
 	WindowClear                         bool     `json:"window:*,omitempty"`
 	WindowFullscreenOnLaunch            bool     `json:"window:fullscreenonlaunch,omitempty"`

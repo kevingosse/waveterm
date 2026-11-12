@@ -1088,11 +1088,6 @@ declare global {
         "web:openlinksinternally"?: boolean;
         "web:defaulturl"?: string;
         "web:defaultsearch"?: string;
-        "autoupdate:*"?: boolean;
-        "autoupdate:enabled"?: boolean;
-        "autoupdate:intervalms"?: number;
-        "autoupdate:installonquit"?: boolean;
-        "autoupdate:channel"?: string;
         "markdown:fontsize"?: number;
         "markdown:fixedfontsize"?: number;
         "preview:showhiddenfiles"?: boolean;
@@ -1100,8 +1095,6 @@ declare global {
         "tab:preset"?: string;
         "tab:confirmclose"?: boolean;
         "tab:background"?: string;
-        "widget:*"?: boolean;
-        "widget:showhelp"?: boolean;
         "window:*"?: boolean;
         "window:fullscreenonlaunch"?: boolean;
         "window:transparent"?: boolean;
