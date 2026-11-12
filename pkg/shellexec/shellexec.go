@@ -631,17 +631,23 @@ func StartLocalShellProc(logCtx context.Context, termSize waveobj.TermSize, cmdS
 		ecmd.Env = os.Environ()
 	}
 
-	packedToken, err := cmdOpts.SwapToken.PackForClient()
-	if err != nil {
-		blocklogger.Infof(logCtx, "error packing swap token: %v", err)
-	} else {
-		blocklogger.Debugf(logCtx, "packed swaptoken %s\n", packedToken)
-		shellutil.UpdateCmdEnv(ecmd, map[string]string{wavebase.WaveSwapTokenVarName: packedToken})
-	}
-	jwtToken := cmdOpts.SwapToken.Env[wavebase.WaveJwtTokenVarName]
-	if jwtToken != "" && cmdOpts.ForceJwt {
-		blocklogger.Debugf(logCtx, "adding JWT token to environment\n")
-		shellutil.UpdateCmdEnv(ecmd, map[string]string{wavebase.WaveJwtTokenVarName: jwtToken})
+	// A local interactive shell can be handed its environment directly. Exchanging the swap token
+	// instead costs a wsh launch before the first prompt, and on Windows that launch can be held for
+	// ~10s by antivirus scanning. Only a custom init script still needs the token round-trip.
+	directEnv := isShell && cmdOpts.SwapToken.ScriptText == ""
+	if !directEnv {
+		packedToken, err := cmdOpts.SwapToken.PackForClient()
+		if err != nil {
+			blocklogger.Infof(logCtx, "error packing swap token: %v", err)
+		} else {
+			blocklogger.Debugf(logCtx, "packed swaptoken %s\n", packedToken)
+			shellutil.UpdateCmdEnv(ecmd, map[string]string{wavebase.WaveSwapTokenVarName: packedToken})
+		}
+		jwtToken := cmdOpts.SwapToken.Env[wavebase.WaveJwtTokenVarName]
+		if jwtToken != "" && cmdOpts.ForceJwt {
+			blocklogger.Debugf(logCtx, "adding JWT token to environment\n")
+			shellutil.UpdateCmdEnv(ecmd, map[string]string{wavebase.WaveJwtTokenVarName: jwtToken})
+		}
 	}
 
 	/*
@@ -684,7 +690,12 @@ func StartLocalShellProc(logCtx context.Context, termSize waveobj.TermSize, cmdS
 	if termSize.Rows <= 0 || termSize.Cols <= 0 {
 		return nil, fmt.Errorf("invalid term size: %v", termSize)
 	}
-	shellutil.AddTokenSwapEntry(cmdOpts.SwapToken)
+	if directEnv {
+		// applied last so it overrides the defaults above, matching what the token exchange did inside the shell
+		shellutil.UpdateCmdEnv(ecmd, cmdOpts.SwapToken.Env)
+	} else {
+		shellutil.AddTokenSwapEntry(cmdOpts.SwapToken)
+	}
 	cmdPty, err := pty.StartWithSize(ecmd, &pty.Winsize{Rows: uint16(termSize.Rows), Cols: uint16(termSize.Cols)})
 	if err != nil {
 		return nil, err

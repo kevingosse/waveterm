@@ -2,9 +2,11 @@
 # Add Wave binary directory to PATH
 set -x PATH {{.WSHBINDIR}} $PATH
 
-# Source dynamic script from wsh token (the echo is to prevent fish from complaining about empty input)
-wsh token "$WAVETERM_SWAPTOKEN" fish 2>/dev/null | source
-set -e WAVETERM_SWAPTOKEN
+# Source dynamic script from wsh token (local shells normally get their env directly and have no token)
+if set -q WAVETERM_SWAPTOKEN; and test -n "$WAVETERM_SWAPTOKEN"
+    wsh token "$WAVETERM_SWAPTOKEN" fish 2>/dev/null | source
+    set -e WAVETERM_SWAPTOKEN
+end
 
 # Load Wave completions
 wsh completion fish | source

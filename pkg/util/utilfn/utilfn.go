@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package utilfn
 
@@ -828,6 +829,30 @@ func MergeStrMaps[T any](m1 map[string]T, m2 map[string]T) map[string]T {
 		rtn[key] = val
 	}
 	return rtn
+}
+
+// returns false if either file cannot be read
+func FileContentsEqual(path1 string, path2 string) bool {
+	info1, err := os.Stat(path1)
+	if err != nil {
+		return false
+	}
+	info2, err := os.Stat(path2)
+	if err != nil {
+		return false
+	}
+	if info1.Size() != info2.Size() {
+		return false
+	}
+	data1, err := os.ReadFile(path1)
+	if err != nil {
+		return false
+	}
+	data2, err := os.ReadFile(path2)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(data1, data2)
 }
 
 func AtomicRenameCopy(dstPath string, srcPath string, perms os.FileMode) error {

@@ -9,9 +9,11 @@ WAVETERM_WSHBINDIR={{.WSHBINDIR}}
 # after /etc/profile which is likely to clobber the path
 export PATH="$WAVETERM_WSHBINDIR:$PATH"
 
-# Source the dynamic script from wsh token
-eval "$(wsh token "$WAVETERM_SWAPTOKEN" bash 2> /dev/null)"
-unset WAVETERM_SWAPTOKEN
+# Source the dynamic script from wsh token (local shells normally get their env directly and have no token)
+if [ -n "$WAVETERM_SWAPTOKEN" ]; then
+    eval "$(wsh token "$WAVETERM_SWAPTOKEN" bash 2> /dev/null)"
+    unset WAVETERM_SWAPTOKEN
+fi
 
 # Source the first of ~/.bash_profile, ~/.bash_login, or ~/.profile that exists
 if [ -f ~/.bash_profile ]; then

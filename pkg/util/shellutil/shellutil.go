@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package shellutil
 
@@ -453,11 +454,16 @@ func initCustomShellStartupFilesInternal() error {
 	if runtime.GOOS == "windows" {
 		wshDstPath = wshDstPath + ".exe"
 	}
+	wshBaseName := filepath.Base(wshFullPath)
+	// a rewritten binary looks new to antivirus, which can hold its next launch for several seconds
+	if utilfn.FileContentsEqual(wshDstPath, wshFullPath) {
+		log.Printf("wsh binary %q already matches %q\n", wshDstPath, wshBaseName)
+		return nil
+	}
 	err = utilfn.AtomicRenameCopy(wshDstPath, wshFullPath, 0755)
 	if err != nil {
 		return fmt.Errorf("error copying wsh binary to bin: %v", err)
 	}
-	wshBaseName := filepath.Base(wshFullPath)
 	log.Printf("wsh binary successfully copied from %q to %q\n", wshBaseName, wshDstPath)
 	return nil
 }

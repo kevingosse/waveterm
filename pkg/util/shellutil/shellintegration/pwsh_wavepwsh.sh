@@ -1,16 +1,25 @@
 # We source this file with -NoExit -File
 $env:PATH = {{.WSHBINDIR_PWSH}} + "{{.PATHSEP}}" + $env:PATH
 
-# Source dynamic script from wsh token
-$waveterm_swaptoken_output = wsh token $env:WAVETERM_SWAPTOKEN pwsh 2>$null | Out-String
-if ($waveterm_swaptoken_output -and $waveterm_swaptoken_output -ne "") {
-    Invoke-Expression $waveterm_swaptoken_output
+# Source dynamic script from wsh token (local shells normally get their env directly and have no token)
+if ($env:WAVETERM_SWAPTOKEN) {
+    $waveterm_swaptoken_output = wsh token $env:WAVETERM_SWAPTOKEN pwsh 2>$null | Out-String
+    if ($waveterm_swaptoken_output -and $waveterm_swaptoken_output -ne "") {
+        Invoke-Expression $waveterm_swaptoken_output
+    }
+    Remove-Variable -Name waveterm_swaptoken_output
+    Remove-Item Env:WAVETERM_SWAPTOKEN
 }
-Remove-Variable -Name waveterm_swaptoken_output
-Remove-Item Env:WAVETERM_SWAPTOKEN
 
-# Load Wave completions
-wsh completion powershell | Out-String | Invoke-Expression
+# Wave completions load on first use: generating them launches wsh, which is too slow to do on every shell startup
+Register-ArgumentCompleter -Native -CommandName wsh -ScriptBlock {
+    param($wordToComplete, $commandAst, $cursorPosition)
+    $completionScript = wsh completion powershell | Out-String
+    if (-not $completionScript) { return }
+    # a module keeps cobra's helper functions alive for the completer it registers (which replaces this one)
+    $completionModule = New-Module -ScriptBlock ([scriptblock]::Create($completionScript))
+    & (& $completionModule { ${__wshCompleterBlock} }) $wordToComplete $commandAst $cursorPosition
+}
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     return  # skip OSC setup entirely
