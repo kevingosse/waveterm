@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package wcloud
 
@@ -112,8 +113,14 @@ func makeAnonPostReq(ctx context.Context, apiUrl string, data interface{}) (*htt
 	return req, nil
 }
 
+// A fork must not report into upstream's telemetry, so nothing is ever sent to Wave's cloud.
+const cloudRequestsEnabled = false
+
 func doRequest(req *http.Request, outputObj interface{}, verbose bool) (*http.Response, error) {
 	apiUrl := req.Header.Get("X-PromptAPIUrl")
+	if !cloudRequestsEnabled {
+		return nil, fmt.Errorf("wcloud %q request skipped: cloud requests are disabled in this build", apiUrl)
+	}
 	if verbose {
 		log.Printf("[wcloud] sending request %s %v\n", req.Method, req.URL)
 	}

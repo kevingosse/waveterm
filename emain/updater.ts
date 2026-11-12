@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { dialog, ipcMain, Notification } from "electron";
 import { autoUpdater } from "electron-updater";
@@ -222,32 +223,7 @@ ipcMain.on("get-updater-channel", (event) => {
     event.returnValue = getResolvedUpdateChannel();
 });
 
-let autoUpdateLock = false;
-
-/**
- * Configures the auto-updater based on the user's preference
- */
 export async function configureAutoUpdater() {
-    if (isDev()) {
-        console.log("skipping auto-updater in dev mode");
-        return;
-    }
-
-    // simple lock to prevent multiple auto-update configuration attempts, this should be very rare
-    if (autoUpdateLock) {
-        console.log("auto-update configuration already in progress, skipping");
-        return;
-    }
-    autoUpdateLock = true;
-
-    try {
-        console.log("Configuring updater");
-        const settings = (await RpcApi.GetFullConfigCommand(ElectronWshClient)).settings;
-        updater = new Updater(settings);
-        await updater.start();
-    } catch (e) {
-        console.warn("error configuring updater", e.toString());
-    }
-
-    autoUpdateLock = false;
+    // This fork is deployed from local builds. Upstream's release feed must never be allowed to replace it.
+    console.log("auto-updater is disabled in this build");
 }
