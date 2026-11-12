@@ -7,6 +7,7 @@
 //   node ops/cdp.mjs list [--port N]
 //   node ops/cdp.mjs eval <target> <expression> [--port N]
 //   node ops/cdp.mjs screenshot <target> <file.png> [--port N]
+//   node ops/cdp.mjs key <target> <chord>... [--port N]       e.g. Ctrl+Shift+ArrowLeft
 //
 // <target> is an index from `list`, or a substring of a target's title or url. "active" picks the app tab that is
 // currently showing. Expressions are awaited, and their JSON-serialisable result is printed.
@@ -109,6 +110,46 @@ async function pickTarget(spec) {
     return target;
 }
 
+const NamedKeys = {
+    ArrowLeft: 37,
+    ArrowUp: 38,
+    ArrowRight: 39,
+    ArrowDown: 40,
+    Enter: 13,
+    Escape: 27,
+    Tab: 9,
+    Backspace: 8,
+    Delete: 46,
+    Space: 32,
+};
+
+// "Ctrl+Shift+ArrowLeft", "Alt+t", "Escape" ...
+function parseChord(chord) {
+    const parts = chord.split("+");
+    const keyName = parts.pop();
+    let modifiers = 0;
+    for (const mod of parts) {
+        const bit = { alt: 1, ctrl: 2, control: 2, meta: 4, cmd: 4, shift: 8 }[mod.toLowerCase()];
+        if (bit == null) {
+            throw new Error(`unknown modifier ${JSON.stringify(mod)} in ${JSON.stringify(chord)}`);
+        }
+        modifiers |= bit;
+    }
+    if (NamedKeys[keyName] != null) {
+        const key = keyName === "Space" ? " " : keyName;
+        return { modifiers, key, code: keyName, windowsVirtualKeyCode: NamedKeys[keyName] };
+    }
+    if (/^[a-z]$/i.test(keyName)) {
+        const upper = keyName.toUpperCase();
+        const key = modifiers & 8 ? upper : keyName.toLowerCase();
+        return { modifiers, key, code: `Key${upper}`, windowsVirtualKeyCode: upper.charCodeAt(0) };
+    }
+    if (/^[0-9]$/.test(keyName)) {
+        return { modifiers, key: keyName, code: `Digit${keyName}`, windowsVirtualKeyCode: keyName.charCodeAt(0) };
+    }
+    throw new Error(`unknown key ${JSON.stringify(keyName)} in ${JSON.stringify(chord)}`);
+}
+
 async function main() {
     if (command === "list") {
         const targets = await listTargets();
@@ -142,7 +183,23 @@ async function main() {
         }
         return;
     }
-    console.error("usage: node ops/cdp.mjs list | eval <target> <expression> | screenshot <target> <file.png>  [--port N]");
+    if (command === "key") {
+        const [spec, ...chords] = rest;
+        const client = await connect(await pickTarget(spec));
+        try {
+            for (const chord of chords) {
+                const event = parseChord(chord);
+                await client.send("Input.dispatchKeyEvent", { type: "rawKeyDown", ...event });
+                await client.send("Input.dispatchKeyEvent", { type: "keyUp", ...event });
+            }
+        } finally {
+            client.close();
+        }
+        return;
+    }
+    console.error(
+        "usage: node ops/cdp.mjs list | eval <target> <expression> | screenshot <target> <file.png> | key <target> <chord>...  [--port N]"
+    );
     process.exitCode = 2;
 }
 
