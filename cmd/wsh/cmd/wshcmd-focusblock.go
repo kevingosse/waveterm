@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -24,11 +25,7 @@ func init() {
 	rootCmd.AddCommand(focusBlockCmd)
 }
 
-func focusBlockRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("focusblock", rtnErr == nil)
-	}()
-
+func focusBlockRun(cmd *cobra.Command, args []string) error {
 	tabId := os.Getenv("WAVETERM_TABID")
 	if tabId == "" {
 		return fmt.Errorf("no tab id specified (set WAVETERM_TABID environment variable)")

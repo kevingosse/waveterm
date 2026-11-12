@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -95,11 +96,7 @@ func webGetRun(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func webOpenRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("web", rtnErr == nil)
-	}()
-
+func webOpenRun(cmd *cobra.Command, args []string) error {
 	var replaceBlockORef *waveobj.ORef
 	if webOpenReplaceBlock != "" {
 		var err error

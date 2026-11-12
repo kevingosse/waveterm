@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -37,11 +38,7 @@ func init() {
 	rootCmd.AddCommand(sshCmd)
 }
 
-func sshRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("ssh", rtnErr == nil)
-	}()
-
+func sshRun(cmd *cobra.Command, args []string) error {
 	sshArg := args[0]
 	var err error
 	sshArg, err = applySSHOverrides(sshArg, sshLogin, sshPort)

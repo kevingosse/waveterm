@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -30,11 +31,7 @@ func init() {
 	rootCmd.AddCommand(termCmd)
 }
 
-func termRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("term", rtnErr == nil)
-	}()
-
+func termRun(cmd *cobra.Command, args []string) error {
 	var cwd string
 	if len(args) > 0 {
 		cwd = args[0]

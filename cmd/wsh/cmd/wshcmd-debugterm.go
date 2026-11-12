@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -48,10 +49,7 @@ func init() {
 	debugTermCmd.Flags().StringVar(&debugTermInput, "input", "", "read input from file instead of rpc call")
 }
 
-func debugTermRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("debugterm", rtnErr == nil)
-	}()
+func debugTermRun(cmd *cobra.Command, args []string) error {
 	mode, err := getDebugTermMode()
 	if err != nil {
 		return err

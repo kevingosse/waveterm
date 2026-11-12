@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -26,11 +27,7 @@ func init() {
 	rootCmd.AddCommand(launchCmd)
 }
 
-func launchRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("launch", rtnErr == nil)
-	}()
-
+func launchRun(cmd *cobra.Command, args []string) error {
 	widgetId := args[0]
 
 	// Get the full configuration

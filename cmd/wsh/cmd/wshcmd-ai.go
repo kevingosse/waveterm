@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -66,11 +67,7 @@ func getMaxFileSize(mimeType string) (int, string) {
 	return 200 * 1024, "200KB"
 }
 
-func aiRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("ai", rtnErr == nil)
-	}()
-
+func aiRun(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 && aiMessageFlag == "" {
 		OutputHelpMessage(cmd)
 		return fmt.Errorf("no files or message provided")

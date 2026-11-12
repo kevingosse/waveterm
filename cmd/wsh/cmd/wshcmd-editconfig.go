@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -28,11 +29,7 @@ func init() {
 	rootCmd.AddCommand(editConfigCmd)
 }
 
-func editConfigRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("editconfig", rtnErr == nil)
-	}()
-
+func editConfigRun(cmd *cobra.Command, args []string) error {
 	configFile := "settings.json" // default
 	if len(args) > 0 {
 		configFile = args[0]

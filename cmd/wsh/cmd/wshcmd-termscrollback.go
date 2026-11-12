@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -43,11 +44,7 @@ func init() {
 	termScrollbackCmd.Flags().StringVarP(&termScrollbackOutputFile, "output", "o", "", "write output to file instead of stdout")
 }
 
-func termScrollbackRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("termscrollback", rtnErr == nil)
-	}()
-
+func termScrollbackRun(cmd *cobra.Command, args []string) error {
 	// Resolve the block argument
 	fullORef, err := resolveBlockArg()
 	if err != nil {

@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -41,11 +42,7 @@ func init() {
 	tabIndicatorCmd.Flags().BoolVar(&tabIndicatorBeep, "beep", false, "play system bell sound")
 }
 
-func tabIndicatorRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("tabindicator", rtnErr == nil)
-	}()
-
+func tabIndicatorRun(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(os.Stderr, "tabindicator is deprecated, use 'wsh badge' instead\n")
 
 	tabId := tabIndicatorTabId

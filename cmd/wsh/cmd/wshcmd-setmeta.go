@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -156,10 +157,7 @@ func simpleMergeMeta(meta map[string]interface{}, metaUpdate map[string]interfac
 	return meta
 }
 
-func setMetaRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("setmeta", rtnErr == nil)
-	}()
+func setMetaRun(cmd *cobra.Command, args []string) error {
 	var jsonMeta map[string]interface{}
 	if setMetaJsonFilePath != "" {
 		var err error

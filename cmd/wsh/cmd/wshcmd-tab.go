@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -89,11 +90,7 @@ func getWorkspaceForId(wsId string, workspaces []wshrpc.WorkspaceInfoData) (*wav
 	return nil, fmt.Errorf("workspace %q not found", wsId)
 }
 
-func tabListRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("tab-list", rtnErr == nil)
-	}()
-
+func tabListRun(cmd *cobra.Command, args []string) error {
 	wsId, err := resolveWorkspaceId()
 	if err != nil {
 		return err
@@ -152,11 +149,7 @@ func tabListRun(cmd *cobra.Command, args []string) (rtnErr error) {
 	return nil
 }
 
-func tabMoveRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("tab-move", rtnErr == nil)
-	}()
-
+func tabMoveRun(cmd *cobra.Command, args []string) error {
 	tabId := args[0]
 	wsId, err := resolveWorkspaceId()
 	if err != nil {

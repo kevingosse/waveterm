@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -42,11 +43,7 @@ func init() {
 	badgeCmd.Flags().IntVar(&badgePid, "pid", 0, "watch a pid and automatically clear the badge when it exits (default priority 5)")
 }
 
-func badgeRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("badge", rtnErr == nil)
-	}()
-
+func badgeRun(cmd *cobra.Command, args []string) error {
 	if badgePid > 0 && runtime.GOOS == "windows" {
 		return fmt.Errorf("--pid flag is not supported on Windows")
 	}

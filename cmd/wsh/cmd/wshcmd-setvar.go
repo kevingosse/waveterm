@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -56,11 +57,7 @@ func parseKeyValue(arg string) (key, value string, err error) {
 	return key, parts[1], nil
 }
 
-func setVarRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("setvar", rtnErr == nil)
-	}()
-
+func setVarRun(cmd *cobra.Command, args []string) error {
 	// Resolve block to get zoneId
 	if blockArg == "" {
 		if getVarLocal {

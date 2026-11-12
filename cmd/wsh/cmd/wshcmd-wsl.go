@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package cmd
 
@@ -28,11 +29,7 @@ func init() {
 	rootCmd.AddCommand(wslCmd)
 }
 
-func wslRun(cmd *cobra.Command, args []string) (rtnErr error) {
-	defer func() {
-		sendActivity("wsl", rtnErr == nil)
-	}()
-
+func wslRun(cmd *cobra.Command, args []string) error {
 	var err error
 	if distroName == "" {
 		// get default distro from the host
