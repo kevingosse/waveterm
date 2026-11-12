@@ -98,8 +98,6 @@ declare global {
     // waveobj.Client
     type Client = WaveObj & {
         windowids: string[];
-        tosagreed?: number;
-        hasoldhistory?: boolean;
         tempoid?: string;
         installid?: string;
     };
@@ -914,9 +912,6 @@ declare global {
         "vdom:correlationid"?: string;
         "vdom:route"?: string;
         "vdom:persist"?: boolean;
-        "onboarding:githubstar"?: boolean;
-        "onboarding:lastversion"?: string;
-        count?: number;
     };
 
     // tsgenmeta.MethodMeta

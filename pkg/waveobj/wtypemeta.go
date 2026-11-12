@@ -125,11 +125,6 @@ type MetaTSType struct {
 	VDomCorrelationId string `json:"vdom:correlationid,omitempty"`
 	VDomRoute         string `json:"vdom:route,omitempty"`
 	VDomPersist       bool   `json:"vdom:persist,omitempty"`
-
-	OnboardingGithubStar  bool   `json:"onboarding:githubstar,omitempty"`  // for client
-	OnboardingLastVersion string `json:"onboarding:lastversion,omitempty"` // for client (tracks semver of last 'onboarding' shown)
-
-	Count int `json:"count,omitempty"` // temp for cpu plot. will remove later
 }
 
 type MetaDataDecl struct {

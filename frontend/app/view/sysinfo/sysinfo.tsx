@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { globalStore } from "@/app/store/jotaiStore";
 import { makeORef } from "@/app/store/wos";
@@ -26,7 +27,7 @@ export type SysinfoEnv = WaveEnvSubset<{
         fullConfigAtom: WaveEnv["atoms"]["fullConfigAtom"];
     };
     getConnStatusAtom: WaveEnv["getConnStatusAtom"];
-    getBlockMetaKeyAtom: MetaKeyAtomFnType<"graph:numpoints" | "sysinfo:type" | "connection" | "count">;
+    getBlockMetaKeyAtom: MetaKeyAtomFnType<"graph:numpoints" | "sysinfo:type" | "connection">;
 }>;
 
 const DefaultNumPoints = 120;
@@ -113,7 +114,6 @@ class SysinfoViewModel implements ViewModel {
     dataAtom: jotai.PrimitiveAtom<Array<DataItem>>;
     addInitialDataAtom: jotai.WritableAtom<unknown, [DataItem[]], void>;
     addContinuousDataAtom: jotai.WritableAtom<unknown, [DataItem], void>;
-    incrementCount: jotai.WritableAtom<unknown, [], Promise<void>>;
     loadingAtom: jotai.PrimitiveAtom<boolean>;
     numPoints: jotai.Atom<number>;
     metrics: jotai.Atom<string[]>;
@@ -222,13 +222,6 @@ class SysinfoViewModel implements ViewModel {
         });
         this.viewName = jotai.atom((get) => {
             return get(this.plotTypeSelectedAtom);
-        });
-        this.incrementCount = jotai.atom(null, async (get, _set) => {
-            const count = get(this.env.getBlockMetaKeyAtom(blockId, "count")) ?? 0;
-            await this.env.rpc.SetMetaCommand(TabRpcClient, {
-                oref: makeORef("block", this.blockId),
-                meta: { count: count + 1 },
-            });
         });
         this.connection = jotai.atom((get) => {
             const connValue = get(this.env.getBlockMetaKeyAtom(blockId, "connection"));

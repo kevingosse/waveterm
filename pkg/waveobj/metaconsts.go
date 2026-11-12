@@ -123,10 +123,5 @@ const (
 	MetaKey_VDomCorrelationId                = "vdom:correlationid"
 	MetaKey_VDomRoute                        = "vdom:route"
 	MetaKey_VDomPersist                      = "vdom:persist"
-
-	MetaKey_OnboardingGithubStar             = "onboarding:githubstar"
-	MetaKey_OnboardingLastVersion            = "onboarding:lastversion"
-
-	MetaKey_Count                            = "count"
 )
 
