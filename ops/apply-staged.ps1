@@ -72,6 +72,20 @@ try {
     $shortcut.Description = "$AppName terminal"
     $shortcut.Save()
 
+    # Antivirus holds a Go binary it has not seen at its path for about ten seconds on first launch. Take that now, in
+    # the background, instead of on the next start of the app (wavesrv) or the first wsh command in a terminal.
+    $binDir = Join-Path $LiveAppDir 'resources\app.asar.unpacked\dist\bin'
+    $wsh = Get-ChildItem $binDir -Filter 'wsh-*-windows.x64.exe' | Select-Object -First 1
+    $dataBin = Join-Path $profilePaths.Data 'bin'
+    if ($wsh -and (Test-Path $dataBin)) {
+        # the same copy wavesrv would make on its next start; doing it here lets it be scanned ahead of time too
+        Copy-Item $wsh.FullName (Join-Path $dataBin 'wsh.exe') -Force
+    }
+    $warmups = @(Get-ChildItem $binDir -Filter '*.exe') + @(Get-ChildItem $dataBin -Filter 'wsh.exe' -ErrorAction SilentlyContinue)
+    foreach ($binary in $warmups) {
+        Start-Process -FilePath $binary.FullName -ArgumentList 'version' -WindowStyle Hidden | Out-Null
+    }
+
     $version = Get-AppVersion $LiveAppDir
     Write-DeployLog "apply: $AppName $version is now live"
     Write-Host "==> $AppName $version is now live ($exe)" -ForegroundColor Cyan

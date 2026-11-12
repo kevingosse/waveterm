@@ -36,7 +36,8 @@ try {
     $env:WAVELET_VERSION = Get-ReleaseVersion
     Write-Step "packaging $AppName $($env:WAVELET_VERSION)$(if ($dirty.Count -gt 0) { ' (uncommitted changes included)' })"
     $timer = [Diagnostics.Stopwatch]::StartNew()
-    & task package
+    # electron-builder prints one line listing every duplicated dependency, tens of kilobytes long
+    & task package 2>&1 | Where-Object { "$_" -notmatch 'duplicate dependency references' }
 
     $exe = Join-Path $RepoRoot "make\win-unpacked\$AppName.exe"
     if (-not (Test-Path $exe)) {
