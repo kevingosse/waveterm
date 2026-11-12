@@ -10,13 +10,7 @@ import { BaseWindow, BaseWindowConstructorOptions, dialog, globalShortcut, ipcMa
 import { globalEvents } from "emain/emain-events";
 import path from "path";
 import { debounce } from "throttle-debounce";
-import {
-    getGlobalIsQuitting,
-    getGlobalIsRelaunching,
-    setGlobalIsRelaunching,
-    setWasActive,
-    setWasInFg,
-} from "./emain-activity";
+import { getGlobalIsQuitting, getGlobalIsRelaunching, setGlobalIsRelaunching } from "./emain-activity";
 import { log } from "./emain-log";
 import { getElectronAppBasePath, isDev, unamePlatform } from "./emain-platform";
 import { getOrCreateWebViewForTab, getWaveTabViewByWebContentsId, WaveTabView } from "./emain-tabview";
@@ -283,8 +277,6 @@ export class WaveBrowserWindow extends BaseWindow {
             focusedWaveWindow = this; // eslint-disable-line @typescript-eslint/no-this-alias
             console.log("focus win", this.waveWindowId);
             fireAndForget(() => ClientService.FocusWindow(this.waveWindowId));
-            setWasInFg(true);
-            setWasActive(true);
             setTimeout(() => globalEvents.emit("windows-updated"), 50);
         });
         this.on("blur", () => {
