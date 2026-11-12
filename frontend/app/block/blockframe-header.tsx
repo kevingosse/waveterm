@@ -11,16 +11,9 @@ import {
 import { ConnectionButton } from "@/app/block/connectionbutton";
 import { DurableSessionFlyover } from "@/app/block/durable-session-flyover";
 import { getBlockBadgeAtom } from "@/app/store/badge";
-import {
-    createBlockSplitHorizontally,
-    createBlockSplitVertically,
-    recordTEvent,
-    refocusNode,
-    WOS,
-} from "@/app/store/global";
+import { createBlockSplitHorizontally, createBlockSplitVertically, refocusNode, WOS } from "@/app/store/global";
 import { globalStore } from "@/app/store/jotaiStore";
 import { uxCloseBlock } from "@/app/store/keymodel";
-import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
 import { IconButton } from "@/element/iconbutton";
 import { NodeModel } from "@/layout/index";
@@ -227,22 +220,12 @@ const BlockFrame_Header = ({
     const termConfigedDurable = util.useAtomValueSafe(viewModel?.termConfigedDurable);
     const hideViewName = util.useAtomValueSafe(viewModel?.hideViewName);
     const badge = jotai.useAtomValue(getBlockBadgeAtom(useTermHeader ? nodeModel.blockId : null));
-    const magnified = jotai.useAtomValue(nodeModel.isMagnified);
-    const prevMagifiedState = React.useRef(magnified);
     const manageConnection = util.useAtomValueSafe(viewModel?.manageConnection);
     const iconColor = jotai.useAtomValue(waveEnv.getBlockMetaKeyAtom(nodeModel.blockId, "icon:color"));
     const dragHandleRef = preview ? null : nodeModel.dragHandleRef;
     const isTerminalBlock = metaView === "term";
     viewName = metaFrameTitle ?? viewName;
     viewIconUnion = metaFrameIcon ?? viewIconUnion;
-
-    React.useEffect(() => {
-        if (magnified && !preview && !prevMagifiedState.current) {
-            waveEnv.rpc.ActivityCommand(TabRpcClient, { nummagnify: 1 });
-            recordTEvent("action:magnify", { "block:view": viewName });
-        }
-        prevMagifiedState.current = magnified;
-    }, [magnified]);
 
     const viewIconElem = getViewIconElem(viewIconUnion, iconColor);
 
