@@ -63,8 +63,10 @@ function Get-ProcessesUnder([string]$Dir) {
 
 function Stop-ProcessesUnder([string]$Dir) {
     # wavesrv flushes and closes its databases by itself once the app that started it is gone; only kill it if it lingers
-    foreach ($proc in (Get-ProcessesUnder $Dir | Where-Object Name -notlike 'wavesrv*')) {
-        Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+    foreach ($proc in (Get-ProcessesUnder $Dir)) {
+        if ($proc.Name -notlike 'wavesrv*') {
+            Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+        }
     }
     $graceUntil = (Get-Date).AddSeconds(5)
     while ((Get-ProcessesUnder $Dir).Count -gt 0 -and (Get-Date) -lt $graceUntil) {
