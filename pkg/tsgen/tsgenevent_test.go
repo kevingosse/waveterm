@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package tsgen
 
@@ -16,7 +17,7 @@ func TestGenerateWaveEventTypes(t *testing.T) {
 	tsTypesMap := make(map[reflect.Type]string)
 	waveEventTypeDecl := GenerateWaveEventTypes(tsTypesMap)
 
-	if !strings.Contains(waveEventTypeDecl, `type WaveEventName = "blockclose"`) {
+	if !strings.Contains(waveEventTypeDecl, "type WaveEventName =\n    | \"blockclose\"\n") {
 		t.Fatalf("expected WaveEventName declaration, got:\n%s", waveEventTypeDecl)
 	}
 	if !strings.Contains(waveEventTypeDecl, `{ event: "block:jobstatus"; data?: BlockJobStatusData; }`) {
