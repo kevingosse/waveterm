@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package utilds
 
@@ -44,19 +45,6 @@ func GetErrorCode(err error) string {
 	var coded CodedError
 	if errors.As(err, &coded) {
 		return coded.Code
-	}
-	return ""
-}
-
-// GetErrorSubCode extracts the error subcode from anywhere in the error chain.
-// Returns empty string if no CodedError is found or if SubCode is not set.
-func GetErrorSubCode(err error) string {
-	if err == nil {
-		return ""
-	}
-	var coded CodedError
-	if errors.As(err, &coded) {
-		return coded.SubCode
 	}
 	return ""
 }

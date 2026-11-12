@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package remote
 
@@ -77,12 +78,6 @@ const (
 	DialSubCode_Other           = "other"
 )
 
-// Auth error subcodes for more granular classification
-const (
-	AuthSubCode_UnableToAuth    = "unable-to-auth"
-	AuthSubCode_HandshakeFailed = "handshake-failed"
-)
-
 var waveSshConfigUserSettingsInternal *ssh_config.UserSettings
 var configUserSettingsOnce = &sync.Once{}
 
@@ -140,34 +135,33 @@ func SimpleMessageFromPossibleConnectionError(err error) string {
 	return err.Error()
 }
 
-func ClassifyConnError(err error) (string, string) {
+func ClassifyConnError(err error) string {
 	code := utilds.GetErrorCode(err)
-	subCode := utilds.GetErrorSubCode(err)
 	if code != "" {
-		return code, subCode
+		return code
 	}
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) {
-		return ConnErrCode_Dial, ClassifyDialErrorSubCode(err)
+		return ConnErrCode_Dial
 	}
 	var opErr *net.OpError
 	if errors.As(err, &opErr) {
-		return ConnErrCode_Dial, ClassifyDialErrorSubCode(err)
+		return ConnErrCode_Dial
 	}
 	errStr := err.Error()
 	if strings.Contains(errStr, "unable to authenticate") {
-		return ConnErrCode_AuthFailed, AuthSubCode_UnableToAuth
+		return ConnErrCode_AuthFailed
 	}
 	if strings.Contains(errStr, "handshake failed") {
-		return ConnErrCode_AuthFailed, AuthSubCode_HandshakeFailed
+		return ConnErrCode_AuthFailed
 	}
 	if strings.Contains(errStr, "connection refused") {
-		return ConnErrCode_Dial, ClassifyDialErrorSubCode(err)
+		return ConnErrCode_Dial
 	}
 	if strings.Contains(errStr, "timed out") || strings.Contains(errStr, "timeout") {
-		return ConnErrCode_Dial, ClassifyDialErrorSubCode(err)
+		return ConnErrCode_Dial
 	}
-	return ConnErrCode_Unknown, ""
+	return ConnErrCode_Unknown
 }
 
 // ClassifyDialErrorSubCode provides more granular classification of dial errors

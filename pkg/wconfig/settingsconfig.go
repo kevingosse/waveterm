@@ -124,9 +124,6 @@ type SettingsType struct {
 	WindowDimensions                    string   `json:"window:dimensions,omitempty"`
 	WindowZoom                          *float64 `json:"window:zoom,omitempty"`
 
-	TelemetryClear   bool `json:"telemetry:*,omitempty"`
-	TelemetryEnabled bool `json:"telemetry:enabled,omitempty"`
-
 	ConnClear                bool    `json:"conn:*,omitempty"`
 	ConnAskBeforeWshInstall  *bool   `json:"conn:askbeforewshinstall,omitempty"`
 	ConnWshEnabled           bool    `json:"conn:wshenabled,omitempty"`

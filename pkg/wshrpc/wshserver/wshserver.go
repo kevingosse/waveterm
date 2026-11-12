@@ -32,7 +32,6 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/remote/fileshare/wshfs"
 	"github.com/wavetermdev/waveterm/pkg/secretstore"
 	"github.com/wavetermdev/waveterm/pkg/suggestion"
-	"github.com/wavetermdev/waveterm/pkg/telemetry/telemetrydata"
 	"github.com/wavetermdev/waveterm/pkg/util/envutil"
 	"github.com/wavetermdev/waveterm/pkg/util/shellutil"
 	"github.com/wavetermdev/waveterm/pkg/util/utilfn"
@@ -1007,22 +1006,6 @@ func (ws *WshServer) WaveFileReadStreamCommand(ctx context.Context, data wshrpc.
 		Meta:      waveFile.Meta,
 	}
 	return rtnInfo, nil
-}
-
-func (ws *WshServer) RecordTEventCommand(ctx context.Context, data telemetrydata.TEvent) error {
-	return nil
-}
-
-func (ws WshServer) SendTelemetryCommand(ctx context.Context) error {
-	return nil
-}
-
-func (ws *WshServer) WshActivityCommand(ctx context.Context, data map[string]int) error {
-	return nil
-}
-
-func (ws *WshServer) ActivityCommand(ctx context.Context, activity wshrpc.ActivityUpdate) error {
-	return nil
 }
 
 func (ws *WshServer) GetVarCommand(ctx context.Context, data wshrpc.CommandVarData) (*wshrpc.CommandVarResponseData, error) {
