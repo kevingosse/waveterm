@@ -66,6 +66,9 @@ try {
         if ((Get-ProcessesUnder $AppDir).Count -eq 0) {
             throw "the app exited before showing a window"
         }
+        if ((Test-Path $log) -and (Select-String -Path $log -Pattern 'error running wavesrv|wavesrv exited' -Quiet)) {
+            throw "the backend did not start"
+        }
         Start-Sleep -Milliseconds 500
     }
     $windowAfter = ((Get-Date) - $launched).TotalSeconds

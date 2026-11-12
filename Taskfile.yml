@@ -69,15 +69,16 @@ tasks:
             WAVETERM_ENVFILE: "{{.ROOT_DIR}}/.env"
             WAVETERM_NOCONFIRMQUIT: "1"
 
+    # The steps run one after another on purpose. As deps they would run in parallel, and clean would be deleting
+    # dist while the backend build writes into it.
     package:
         desc: Package the application for the current platform.
         cmds:
+            - task: clean
+            - task: npm:install
+            - task: build:backend
+            - task: build:tsunamiscaffold
             - npm run build:prod && npm exec electron-builder -- -c electron-builder.config.cjs -p never {{.CLI_ARGS}}
-        deps:
-            - clean
-            - npm:install
-            - build:backend
-            - build:tsunamiscaffold
 
     build:frontend:dev:
         desc: Build the frontend in development mode.
@@ -459,12 +460,16 @@ tasks:
         internal: true
         cmd: '{{if eq OS "windows"}}powershell -NoProfile -NonInteractive Copy-Item -Recurse -Force -Path {{index .MATCH 0}} -Destination {{index .MATCH 1}}{{else}}mkdir -p "$(dirname {{index .MATCH 1}})" && cp -r {{index .MATCH 0}} {{index .MATCH 1}}{{end}}'
 
+    # .task holds the checksums that let tasks skip work. They have to go together with dist: otherwise a build whose
+    # sources have not changed is considered up to date and skipped, although its output was just deleted.
     clean:
         desc: clean make/dist directories
         cmds:
             - cmd: '{{.RMRF}} "make"'
               ignore_error: true
             - cmd: '{{.RMRF}} "dist"'
+              ignore_error: true
+            - cmd: '{{.RMRF}} ".task"'
               ignore_error: true
 
     tsunami:demo:todo:

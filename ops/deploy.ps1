@@ -30,6 +30,8 @@ param(
 Add-BuildToolsToPath
 
 $version = Get-ReleaseVersion
+# remembered now, because HEAD may have moved on by the time the build is tagged
+$commit = (& git -C $RepoRoot rev-parse HEAD).Trim()
 $dirty = @(& git -C $RepoRoot status --porcelain).Count -gt 0
 $built = Join-Path $RepoRoot 'make\win-unpacked'
 
@@ -52,10 +54,10 @@ if (-not $SkipSmoke) {
 Write-Step "staging $AppName $version"
 New-Item -ItemType Directory -Force $InstallRoot | Out-Null
 Invoke-Robocopy $built $StagedAppDir /MIR
-Write-DeployLog "deploy: staged $version ($(& git -C $RepoRoot rev-parse --short HEAD)$(if ($dirty) { ', dirty' }))"
+Write-DeployLog "deploy: staged $version ($($commit.Substring(0, 8))$(if ($dirty) { ', dirty' }))"
 
 if (-not $dirty) {
-    & git -C $RepoRoot tag -f "v$version" | Out-Null
+    & git -C $RepoRoot tag -f "v$version" $commit | Out-Null
 }
 
 $apply = Join-Path $PSScriptRoot 'apply-staged.ps1'
