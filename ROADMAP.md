@@ -30,6 +30,10 @@ Windows x64 is built and tested, plus `wsh` for Linux x64 and arm64 (WSL, SSH ho
 **Deployed from source as an unpacked directory.** No installer and no updater. `ops/deploy.ps1` builds, smoke-tests,
 stages and swaps; `ops/rollback.ps1` goes back. Versions are `0.20.<commits since the fork point>`.
 
+**The name is Wavelet, and its colour is blue.** The icon is upstream's logo with the hue rotated
+(`ops/make-icon.mjs`), so that the fork and an official install can be told apart at a glance. The logo is blue
+wherever the app shows it; the interface accent (focus borders, buttons, links) is still upstream's green.
+
 ## Phase 0: foundation (done)
 
 - Builds from source on Windows; development, release and rollback tooling in `ops/`.
@@ -75,6 +79,7 @@ until the restored terminal has a live prompt. Measured on installed builds, med
 | ---------------------------------------------- | ------- | ------- |
 | 0.20.31, before Wave AI and the rest came out  | 0.94 s  | 1.68 s  |
 | 0.20.59, cleaned up, shells started early      | 0.97 s  | 1.16 s  |
+| 0.20.59 with an antivirus exclusion (below)    | 0.75 s  | 0.90 s  |
 
 (The machine was busier during part of the second series; its first three runs were 0.82 s and 0.98 s.)
 
@@ -102,6 +107,10 @@ To be designed. Starting points: what `wsh` can already do for an agent (open pr
 scrollback), what is awkward about it (addressing blocks is clumsy; each call costs about 60 ms, nearly all of it
 process start), and what window management lacks today.
 
+Known small thing: the app never sets a Windows AppUserModelID, so a `wsh notify` toast is attributed to Electron's
+generated id instead of to "Wavelet" with its icon. Fixing it means setting the id in the app and on the Start menu
+shortcut that `ops/apply-staged.ps1` creates. Not checked on screen yet.
+
 ## Open questions
 
 - **Antivirus and PowerShell.** On the maintainer's machine, Windows Defender holds the first launch of PowerShell 7
@@ -110,8 +119,10 @@ process start), and what window management lacks today.
   1 to 2 ms after that), the same program outside Electron takes 6 ms, other programs (`cmd`, `node`, `git`, Windows
   PowerShell 5.1) are not held, and Defender's CPU use jumps during the hold. Nothing on the command line changes it.
   For the installed app the hold is around 0.5 s; for a build run from the repository it is 1.15 s. The app now spends
-  it in parallel with opening the window. A Defender exclusion for the install directory should remove it, which
-  would put the prompt on screen together with the window; that needs elevation and is the maintainer's call.
+  it in parallel with opening the window. A Defender process exclusion for the app removes it, and takes 0.2 s off
+  the window as well: 0.75 s to the window and 0.90 s to the prompt, median of six cold starts. Nothing in the app
+  depends on the exclusion; it is a security trade-off to make per machine, and the numbers to compare against
+  depend on whether it is in place.
 - **Antivirus and fresh builds.** Every build is a new unsigned binary, and Defender sometimes holds a Go binary it
   has not seen at its path for about ten seconds on first launch. The deploy launches the installed binaries once to
   take that hit early; after that, launches from the install directory were not held again in the hours observed.
