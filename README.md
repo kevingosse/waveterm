@@ -13,9 +13,13 @@ Terminal, use [Wave Terminal](https://www.waveterm.dev).
 - **It lives next to an official Wave install without touching it.** Wavelet has its own name, app id, install
   location, data and config directories, and its own directory on remotes (`~/.wavelet`). Nothing that manages the
   official app can replace or update this one.
+- **It is only a terminal.** Wave AI, the app builder, onboarding, the documentation site and the in-app help are
+  gone, along with about 120,000 lines of code.
 - **It never contacts Wave's cloud.** No telemetry, no diagnostic ping, no auto-update.
 - **Shells start faster.** A local shell no longer launches `wsh` before its first prompt. On Windows that launch
   could be held by antivirus for around ten seconds, which left new terminals sitting on the PowerShell banner.
+  The shells of the tab you left open are started together with the app, not after its window has rendered.
+- **`wsh` works in every local shell**, including `cmd.exe` and shells started with their own command line.
 - **Profiles.** `WAVELET_PROFILE=<name>` gives an instance a separate set of directories, so a development build or
   a release candidate can run beside the installed app.
 
@@ -56,8 +60,12 @@ Start it with `WAVELET_CDP_PORT=9333` set and the instance can be driven without
 node ops\cdp.mjs list                       # the tabs of the running instance
 node ops\cdp.mjs screenshot active shot.png # what the visible tab looks like
 node ops\cdp.mjs eval active "document.title"
+node ops\cdp.mjs key active Ctrl+Shift+ArrowLeft
 node ops\measure-prompt.mjs                 # time from new terminal block to first prompt
 ```
+
+`node ops\measure-startup.mjs` measures cold starts of a packaged build (window shown, first live prompt) under a
+throwaway profile.
 
 ### Deploy
 
@@ -70,7 +78,9 @@ profile, and installs it to `%LOCALAPPDATA%\Programs\Wavelet`. If Wavelet is run
 takes over the next time Wavelet starts, so this is safe to run from a terminal inside Wavelet. Add `-Restart` to
 switch immediately.
 
-The previous version and a copy of the databases are kept. `ops\rollback.ps1` goes back.
+The previous version and a copy of the databases are kept. `ops\rollback.ps1` goes back. When a build changes the
+database schema or the layout code, deploy with `-WithRealData`: the smoke test then runs against a copy of the
+installed profile.
 
 ### Bring your Wave Terminal setup across
 

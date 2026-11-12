@@ -40,7 +40,12 @@ Nothing counts as working until it has been seen working in the app.
 3. Look at it: `node ops/cdp.mjs screenshot active <file.png>`, `node ops/cdp.mjs eval active "<expression>"`. The
    renderer exposes `globalStore`, `globalAtoms`, `RpcApi`, `TabRpcClient`, `WOS` and, for the most recently created
    terminal, `window.term`.
-4. For anything that affects startup or the shell, measure before and after: `node ops/measure-prompt.mjs`.
+4. For anything that affects startup or the shell, measure before and after: `node ops/measure-prompt.mjs` (a new
+   terminal block in a running instance) and `node ops/measure-startup.mjs` (cold starts of a packaged build; pass
+   `--app` to compare against the installed build or `app.prev`). Removing code counts: a removal has already cost
+   half a second of startup once, by taking away a side effect. Numbers taken while builds or agents are running are
+   noise, and a build run from the repository is held longer by antivirus than the installed one, so compare like
+   with like.
 5. Before deploying, `ops\deploy.ps1` runs the packaged build through `ops\smoke.ps1`. Packaged builds fail in ways dev
    builds do not.
 

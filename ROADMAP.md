@@ -34,64 +34,90 @@ stages and swaps; `ops/rollback.ps1` goes back. Versions are `0.20.<commits sinc
 
 - Builds from source on Windows; development, release and rollback tooling in `ops/`.
 - Own identity, directories and remote directory; nothing sent to upstream's cloud; no auto-update.
-- Local shells no longer launch `wsh` before their first prompt. Measured in a dev build: 565 to 631 ms from creating
-  a terminal block to the PowerShell prompt, which is PowerShell's own startup plus the user profile.
+- Local shells no longer launch `wsh` before their first prompt. A new terminal block reaches its PowerShell prompt
+  in 550 to 630 ms, which is PowerShell's own startup plus the user profile.
+- `wsh` works in every local shell, including ones that skip the integration script (cmd.exe, a PowerShell started
+  with its own `-Command`).
 
-## Phase 1: remove what is not used
+## Phase 1: remove what is not used (done, except the optional step)
 
-In this order, because of how the pieces depend on each other. Each step ends with a build, a type check, the test
-suite, and a smoke test of the packaged app.
+About 121,000 lines and 1,200 npm packages are gone; the backend binary went from 32.0 MB to 27.7 MB and the packaged
+frontend from 147 MB to 114 MB.
 
 1. **Dead code and developer tooling**: the component preview server, unused files and npm packages, unused Go
-   packages and test harnesses. Goes first because the preview server mocks the interfaces that every later step
-   changes.
-2. **The app builder (Tsunami, WaveApps) together with Wave AI.** They import each other on both the Go and the
-   TypeScript side. This is the largest step: the AI panel is part of the workspace layout, of focus handling and of
-   keyboard navigation, and is mounted in every tab even when hidden.
-3. **What is left of telemetry, onboarding and the updater**, including the calls spread through the connection and
-   job code, and the telemetry tables (dropped by a new migration, not by editing old ones).
-4. **Help, tips and the documentation site.**
-5. **Optional, decide when we get there**: the legacy VDOM view (woven into the terminal view) and the process
+   packages and test harnesses, the documentation site, the in-app help and tips.
+2. **The app builder (Tsunami, WaveApps) and Wave AI**, on both sides, including their RPC commands, settings and
+   events.
+3. **Telemetry, the cloud client, onboarding, the terms-of-service gate and the updater**, including the telemetry
+   tables (dropped by migration 12). A new profile now starts with a single terminal instead of a tour.
+4. **Still open, decide when it matters**: the legacy VDOM view (woven into the terminal view) and the process
    viewer.
 
-Known traps:
+Things to remember from doing it:
 
 - The generated RPC client is referenced by name from frontend types. Remove frontend uses before, or together with,
   regenerating after an RPC is removed.
 - When removing RPC types, run `generatego` before `generatets`, and prune the hard-coded import list in
   `cmd/generatego/main-generatego.go`, or the generated client will not compile.
 - `secretstore` stays (SSH passwords), and so does `TermGetScrollbackLines` (`wsh termscrollback`).
-- First launch gets its starter layout from the terms-of-service flow. When onboarding goes, that has to move.
+- Removing code can remove a side effect something relied on. Upstream launched two PowerShell processes at backend
+  startup, for telemetry and for the AI. With both gone, the first shell of a cold start got half a second slower,
+  because those launches had been absorbing an antivirus delay (see below). Measure startup after every removal.
+- Untracked build output that contains Go files (a stale `tsunami/` directory, for instance) is picked up by
+  `go mod tidy` as part of the module and brings dependencies back.
 
 ## Phase 2: startup
 
-Measure first; `ops/measure-prompt.mjs` covers the shell, and the app start needs the same treatment. Then, roughly
-in order of expected gain:
+`node ops/measure-startup.mjs` measures a cold start of a packaged build: time until the window is shown, and time
+until the restored terminal has a live prompt. Measured on installed builds, median of seven cold starts:
 
-1. Load on demand what is rarely needed: the code editor, charts, the markdown stack. Today every tab loads all of
-   it before showing anything.
+| Build                                          | Window  | Prompt  |
+| ---------------------------------------------- | ------- | ------- |
+| 0.20.31, before Wave AI and the rest came out  | 0.94 s  | 1.68 s  |
+| 0.20.59, cleaned up, shells started early      | 0.97 s  | 1.16 s  |
+
+(The machine was busier during part of the second series; its first three runs were 0.82 s and 0.98 s.)
+
+Done:
+
+- **Shells start when the backend is up, not when the terminal view has measured itself.** The backend starts the
+  local shells of each window's active tab right away, at the size stored with the block. The prompt now follows the
+  window by about 0.2 s instead of 0.7 s.
+- Removing the AI panel and onboarding took the 9.3 MB syntax-highlighting chunk and one request out of every tab's
+  startup; the time a tab spends loading scripts went from about 340 ms to about 255 ms.
+
+Next, roughly in order of expected gain:
+
+1. Load on demand what is rarely needed: the code editor (7.8 MB, loaded by every tab), charts, the markdown stack.
 2. Stop waiting for 9.5 MB of fonts before reporting a tab ready.
 3. Run the initial requests of a tab in parallel instead of one after another.
 4. Create the first tab's renderer while the backend starts, not after; delay the spare tab until the first one is
    visible; show each window as soon as it is ready.
-5. Start the shell before the terminal view has been measured, and resize once the size is known.
+5. A restored terminal shows the screen of its previous session for a moment before the new shell's output replaces
+   it. Decide what it should show instead.
 
 ## Phase 3: windows and agents
 
 To be designed. Starting points: what `wsh` can already do for an agent (open previews, editors, web views, read
-scrollback), what is awkward about it (every call used to block on a telemetry round-trip; addressing blocks is
-clumsy), and what window management lacks today.
+scrollback), what is awkward about it (addressing blocks is clumsy; each call costs about 60 ms, nearly all of it
+process start), and what window management lacks today.
 
 ## Open questions
 
-- **Antivirus and fresh builds.** Every new build is a new unsigned binary, and Windows Defender sometimes holds a Go
-  binary it has not seen at its path for about ten seconds on first launch (the first start of the first deployed
-  build waited 10.9 s for the backend; the second start, 51 ms). The deploy now launches the installed binaries once
-  to take that hit early. Whether the hold comes back for a binary that has aged a few hours is not known yet. If it
-  shows up in daily use, the options are a Defender exclusion for the install directory or signing the binaries with
-  a locally trusted certificate.
+- **Antivirus and PowerShell.** On the maintainer's machine, Windows Defender holds the first launch of PowerShell 7
+  by each process of an Electron app. It is not this app's doing: a bare Electron script that starts a small program
+  which starts `pwsh.exe` shows the same hold (about 1.0 s for the first process in the app, 0.5 s for later ones,
+  1 to 2 ms after that), the same program outside Electron takes 6 ms, other programs (`cmd`, `node`, `git`, Windows
+  PowerShell 5.1) are not held, and Defender's CPU use jumps during the hold. Nothing on the command line changes it.
+  For the installed app the hold is around 0.5 s; for a build run from the repository it is 1.15 s. The app now spends
+  it in parallel with opening the window. A Defender exclusion for the install directory should remove it, which
+  would put the prompt on screen together with the window; that needs elevation and is the maintainer's call.
+- **Antivirus and fresh builds.** Every build is a new unsigned binary, and Defender sometimes holds a Go binary it
+  has not seen at its path for about ten seconds on first launch. The deploy launches the installed binaries once to
+  take that hit early; after that, launches from the install directory were not held again in the hours observed.
 - **A terminal that lost its first output.** Once, a terminal block created by a script within seconds of the app
   starting showed neither its first line of output nor its first prompt until something was typed. Two retries on a
-  settled instance were fine. Unconfirmed, but the suspect is the terminal view being rebuilt while the tab is still
-  initialising (it is rebuilt whenever any `term:*` setting object changes). Look at this in Phase 2, since the first
-  terminal of a fresh start is exactly the case that has to be right.
+  settled instance were fine. Unconfirmed; the suspect is the terminal view being rebuilt while the tab is still
+  initialising (it is rebuilt whenever any `term:*` setting object changes).
+- **Keyboard navigation out of a web block** could not be checked with injected key events (they do not reach the
+  app's key handling while a web view has focus, on builds from before the cleanup as well). Check by hand.
