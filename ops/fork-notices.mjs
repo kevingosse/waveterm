@@ -60,8 +60,11 @@ for (const file of modified) {
         anchor = header.findIndex((l) => /^\s*(\/\/|#)\s*Copyright \d{4}, Command Line Inc\./.test(l));
     }
     if (anchor < 0) {
-        // a block-comment header; nothing safe to do automatically
-        console.warn(`skipped (unrecognised header style): ${file}`);
+        // Either a block-comment header, which is not safe to edit automatically, or a plain text file such as
+        // NOTICE that merely mentions the copyright.
+        if (header.some((l) => /^\s*(\/\*|\*)/.test(l))) {
+            console.warn(`skipped (block-comment header, add the notice by hand): ${file}`);
+        }
         continue;
     }
     missing.push(file);

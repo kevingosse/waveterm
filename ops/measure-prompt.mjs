@@ -4,7 +4,7 @@
 // Measures how long a new terminal block takes to reach its first shell prompt, inside a running instance that was
 // started with WAVELET_CDP_PORT. Each run creates a block, times it, and deletes it again.
 //
-//   node ops/measure-prompt.mjs [--port N] [--runs N] [--target <substring of tab title>]
+//   node ops/measure-prompt.mjs [--port N] [--runs N] [--target <cdp.mjs target, default: active>]
 
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -17,7 +17,7 @@ function takeOpt(name, defaultValue) {
 }
 const port = takeOpt("--port", process.env.WAVELET_CDP_PORT ?? "9333");
 const runs = Number(takeOpt("--runs", "3"));
-const target = takeOpt("--target", "T1");
+const target = takeOpt("--target", "active");
 
 // Runs in the renderer. Polls the xterm buffer because that is what the user actually sees.
 const probe = `(async () => {
@@ -56,7 +56,16 @@ const probe = `(async () => {
 
 const cdp = path.join(path.dirname(fileURLToPath(import.meta.url)), "cdp.mjs");
 for (let i = 0; i < runs; i++) {
-    const out = execFileSync(process.execPath, [cdp, "eval", target, probe, "--port", port], { encoding: "utf8" });
+    let out;
+    try {
+        out = execFileSync(process.execPath, [cdp, "eval", target, probe, "--port", port], {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"],
+        });
+    } catch (e) {
+        console.error(`run ${i + 1} failed: ${String(e.stderr || e.message).trim().split("\n")[0]}`);
+        process.exit(1);
+    }
     const r = JSON.parse(out);
     console.log(
         `run ${i + 1}: block created ${r.rpcMs} ms, xterm ready ${r.xtermMs} ms, first output ${r.bannerMs} ms, PROMPT ${r.promptMs} ms`

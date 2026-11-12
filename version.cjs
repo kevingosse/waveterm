@@ -22,7 +22,8 @@ const path = require("path");
 const packageJsonPath = path.resolve(__dirname, "package.json");
 const packageJson = require(packageJsonPath);
 
-const VERSION = `${packageJson.version}`;
+// A release build passes its version in (see ops/deploy.ps1), so that deploying never has to edit package.json.
+const VERSION = process.env.WAVELET_VERSION || `${packageJson.version}`;
 module.exports = VERSION;
 
 if (typeof require !== "undefined" && require.main === module) {

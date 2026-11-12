@@ -8,8 +8,8 @@
 //   node ops/cdp.mjs eval <target> <expression> [--port N]
 //   node ops/cdp.mjs screenshot <target> <file.png> [--port N]
 //
-// <target> is an index from `list`, or a substring of a target's title or url. "active" picks the tab view that is
-// currently visible. Expressions are awaited, and their JSON-serialisable result is printed.
+// <target> is an index from `list`, or a substring of a target's title or url. "active" picks the app tab that is
+// currently showing. Expressions are awaited, and their JSON-serialisable result is printed.
 
 const args = process.argv.slice(2);
 const portIdx = args.indexOf("--port");
@@ -72,15 +72,28 @@ async function isVisible(target) {
     }
 }
 
+// a tab view of the app itself, as opposed to the page inside a web block
+async function isAppTab(target) {
+    if (target.type !== "page") {
+        return false;
+    }
+    const client = await connect(target);
+    try {
+        return await evaluate(client, "typeof globalStore !== 'undefined' && typeof TabRpcClient !== 'undefined'");
+    } finally {
+        client.close();
+    }
+}
+
 async function pickTarget(spec) {
     const targets = await listTargets();
     if (spec === "active") {
         for (const target of targets) {
-            if (await isVisible(target)) {
+            if ((await isAppTab(target)) && (await isVisible(target))) {
                 return target;
             }
         }
-        throw new Error("no visible target");
+        throw new Error("no visible app tab");
     }
     if (/^\d+$/.test(spec)) {
         const target = targets[Number(spec)];

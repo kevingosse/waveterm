@@ -1,5 +1,7 @@
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 const { Arch } = require("electron-builder");
 const pkg = require("./package.json");
+const version = require("./version.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -14,6 +16,8 @@ const config = {
     productName: pkg.productName,
     executableName: pkg.productName,
     artifactName: "${productName}-${platform}-${arch}-${version}.${ext}",
+    // the packaged app must report the same version that wavesrv and wsh were built with
+    extraMetadata: { version },
     generateUpdatesFilesForAllChannels: true,
     npmRebuild: false,
     nodeGypRebuild: false,
