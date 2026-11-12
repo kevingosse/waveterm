@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package blockcontroller
 
@@ -30,9 +31,8 @@ import (
 )
 
 const (
-	BlockController_Shell   = "shell"
-	BlockController_Cmd     = "cmd"
-	BlockController_Tsunami = "tsunami"
+	BlockController_Shell = "shell"
+	BlockController_Cmd   = "cmd"
 )
 
 const (
@@ -62,7 +62,6 @@ type BlockControllerRuntimeStatus struct {
 	ShellProcStatus   string `json:"shellprocstatus,omitempty"`
 	ShellProcConnName string `json:"shellprocconnname,omitempty"`
 	ShellProcExitCode int    `json:"shellprocexitcode"`
-	TsunamiPort       int    `json:"tsunamiport,omitempty"`
 }
 
 // Controller interface that all block controllers must implement
@@ -205,10 +204,6 @@ func ResyncController(ctx context.Context, tabId string, blockId string, rtOpts 
 			if !shouldUseDurableShellController {
 				needsReplace = true
 			}
-		case *TsunamiController:
-			if controllerName != BlockController_Tsunami {
-				needsReplace = true
-			}
 		}
 
 		if needsReplace {
@@ -250,10 +245,6 @@ func ResyncController(ctx context.Context, tabId string, blockId string, rtOpts 
 			} else {
 				controller = MakeShellController(tabId, blockId, controllerName, connName)
 			}
-			registerController(blockId, controller)
-
-		case BlockController_Tsunami:
-			controller = MakeTsunamiController(tabId, blockId, connName)
 			registerController(blockId, controller)
 
 		default:

@@ -37,26 +37,6 @@ const AnySchema = `
 }
 `
 
-// old AI Widget presets (deprecated)
-type AiSettingsType struct {
-	AiClear         bool    `json:"ai:*,omitempty"`
-	AiPreset        string  `json:"ai:preset,omitempty"`
-	AiApiType       string  `json:"ai:apitype,omitempty"`
-	AiBaseURL       string  `json:"ai:baseurl,omitempty"`
-	AiApiToken      string  `json:"ai:apitoken,omitempty"`
-	AiName          string  `json:"ai:name,omitempty"`
-	AiModel         string  `json:"ai:model,omitempty"`
-	AiOrgID         string  `json:"ai:orgid,omitempty"`
-	AIApiVersion    string  `json:"ai:apiversion,omitempty"`
-	AiMaxTokens     float64 `json:"ai:maxtokens,omitempty"`
-	AiTimeoutMs     float64 `json:"ai:timeoutms,omitempty"`
-	AiProxyUrl      string  `json:"ai:proxyurl,omitempty"`
-	AiFontSize      float64 `json:"ai:fontsize,omitempty"`
-	AiFixedFontSize float64 `json:"ai:fixedfontsize,omitempty"`
-	DisplayName     string  `json:"display:name,omitempty"`
-	DisplayOrder    float64 `json:"display:order,omitempty"`
-}
-
 type SettingsType struct {
 	AppClear                      bool   `json:"app:*,omitempty"`
 	AppGlobalHotkey               string `json:"app:globalhotkey,omitempty"`
@@ -65,31 +45,10 @@ type SettingsType struct {
 	AppShowOverlayBlockNums       *bool  `json:"app:showoverlayblocknums,omitempty"`
 	AppCtrlVPaste                 *bool  `json:"app:ctrlvpaste,omitempty"`
 	AppConfirmQuit                *bool  `json:"app:confirmquit,omitempty"`
-	AppHideAiButton               bool   `json:"app:hideaibutton,omitempty"`
 	AppDisableCtrlShiftArrows     bool   `json:"app:disablectrlshiftarrows,omitempty"`
 	AppDisableCtrlShiftDisplay    bool   `json:"app:disablectrlshiftdisplay,omitempty"`
 	AppFocusFollowsCursor         string `json:"app:focusfollowscursor,omitempty" jsonschema:"enum=off,enum=on,enum=term"`
 	AppTabBar                     string `json:"app:tabbar,omitempty" jsonschema:"enum=top,enum=left"`
-
-	FeatureWaveAppBuilder bool `json:"feature:waveappbuilder,omitempty"`
-
-	AiClear         bool    `json:"ai:*,omitempty"`
-	AiPreset        string  `json:"ai:preset,omitempty"`
-	AiApiType       string  `json:"ai:apitype,omitempty"`
-	AiBaseURL       string  `json:"ai:baseurl,omitempty"`
-	AiApiToken      string  `json:"ai:apitoken,omitempty"`
-	AiName          string  `json:"ai:name,omitempty"`
-	AiModel         string  `json:"ai:model,omitempty"`
-	AiOrgID         string  `json:"ai:orgid,omitempty"`
-	AIApiVersion    string  `json:"ai:apiversion,omitempty"`
-	AiMaxTokens     float64 `json:"ai:maxtokens,omitempty"`
-	AiTimeoutMs     float64 `json:"ai:timeoutms,omitempty"`
-	AiProxyUrl      string  `json:"ai:proxyurl,omitempty"`
-	AiFontSize      float64 `json:"ai:fontsize,omitempty"`
-	AiFixedFontSize float64 `json:"ai:fixedfontsize,omitempty"`
-
-	WaveAiShowCloudModes bool   `json:"waveai:showcloudmodes,omitempty"`
-	WaveAiDefaultMode    string `json:"waveai:defaultmode,omitempty"`
 
 	TermClear               bool     `json:"term:*,omitempty"`
 	TermFontSize            float64  `json:"term:fontsize,omitempty"`
@@ -177,12 +136,6 @@ type SettingsType struct {
 	DebugPprofPort           *int `json:"debug:pprofport,omitempty"`
 	DebugPprofMemProfileRate *int `json:"debug:pprofmemprofilerate,omitempty"`
 	DebugWebGlStatus         bool `json:"debug:webglstatus,omitempty"`
-
-	TsunamiClear          bool   `json:"tsunami:*,omitempty"`
-	TsunamiScaffoldPath   string `json:"tsunami:scaffoldpath,omitempty"`
-	TsunamiSdkReplacePath string `json:"tsunami:sdkreplacepath,omitempty"`
-	TsunamiSdkVersion     string `json:"tsunami:sdkversion,omitempty"`
-	TsunamiGoPath         string `json:"tsunami:gopath,omitempty"`
 }
 
 type ConfigError struct {
@@ -197,34 +150,6 @@ type WebBookmark struct {
 	IconColor    string  `json:"iconcolor,omitempty"`
 	IconUrl      string  `json:"iconurl,omitempty"`
 	DisplayOrder float64 `json:"display:order,omitempty"`
-}
-
-// Wave AI panel mode configuration (NEW)
-type AIModeConfigType struct {
-	DisplayName        string   `json:"display:name"`
-	DisplayOrder       float64  `json:"display:order,omitempty"`
-	DisplayIcon        string   `json:"display:icon,omitempty"`
-	DisplayDescription string   `json:"display:description,omitempty"`
-	Provider           string   `json:"ai:provider,omitempty" jsonschema:"enum=wave,enum=google,enum=groq,enum=openrouter,enum=nanogpt,enum=openai,enum=azure,enum=azure-legacy,enum=custom"`
-	APIType            string   `json:"ai:apitype,omitempty" jsonschema:"enum=google-gemini,enum=openai-responses,enum=openai-chat"`
-	Model              string   `json:"ai:model,omitempty"`
-	ThinkingLevel      string   `json:"ai:thinkinglevel,omitempty" jsonschema:"enum=low,enum=medium,enum=high"`
-	Verbosity          string   `json:"ai:verbosity,omitempty" jsonschema:"enum=low,enum=medium,enum=high,description=Text verbosity level (OpenAI Responses API only)"`
-	Endpoint           string   `json:"ai:endpoint,omitempty"`
-	ProxyURL           string   `json:"ai:proxyurl,omitempty"`
-	AzureAPIVersion    string   `json:"ai:azureapiversion,omitempty"`
-	APIToken           string   `json:"ai:apitoken,omitempty"`
-	APITokenSecretName string   `json:"ai:apitokensecretname,omitempty"`
-	AzureResourceName  string   `json:"ai:azureresourcename,omitempty"`
-	AzureDeployment    string   `json:"ai:azuredeployment,omitempty"`
-	Capabilities       []string `json:"ai:capabilities,omitempty" jsonschema:"enum=pdfs,enum=images,enum=tools"`
-	SwitchCompat       []string `json:"ai:switchcompat,omitempty"`
-	WaveAICloud        bool     `json:"waveai:cloud,omitempty"`
-	WaveAIPremium      bool     `json:"waveai:premium,omitempty"`
-}
-
-type AIModeConfigUpdate struct {
-	Configs map[string]AIModeConfigType `json:"configs"`
 }
 
 type WidgetConfigType struct {
@@ -291,7 +216,6 @@ type FullConfigType struct {
 	TermThemes     map[string]TermThemeType        `json:"termthemes"`
 	Connections    map[string]ConnKeywords         `json:"connections"`
 	Bookmarks      map[string]WebBookmark          `json:"bookmarks"`
-	WaveAIModes    map[string]AIModeConfigType     `json:"waveai"`
 	ConfigErrors   []ConfigError                   `json:"configerrors" configfile:"-"`
 	Version        string                          `json:"version" configfile:"-"`
 	BuildTime      string                          `json:"buildtime" configfile:"-"`

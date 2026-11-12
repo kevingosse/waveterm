@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -21,14 +20,9 @@ import (
 	"time"
 
 	"github.com/skratchdot/open-golang/open"
-	"github.com/wavetermdev/waveterm/pkg/aiusechat"
-	"github.com/wavetermdev/waveterm/pkg/aiusechat/chatstore"
-	"github.com/wavetermdev/waveterm/pkg/aiusechat/uctypes"
 	"github.com/wavetermdev/waveterm/pkg/baseds"
 	"github.com/wavetermdev/waveterm/pkg/blockcontroller"
 	"github.com/wavetermdev/waveterm/pkg/blocklogger"
-	"github.com/wavetermdev/waveterm/pkg/buildercontroller"
-	"github.com/wavetermdev/waveterm/pkg/filebackup"
 	"github.com/wavetermdev/waveterm/pkg/filestore"
 	"github.com/wavetermdev/waveterm/pkg/genconn"
 	"github.com/wavetermdev/waveterm/pkg/jobcontroller"
@@ -38,13 +32,10 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/remote/fileshare/wshfs"
 	"github.com/wavetermdev/waveterm/pkg/secretstore"
 	"github.com/wavetermdev/waveterm/pkg/suggestion"
-	"github.com/wavetermdev/waveterm/pkg/telemetry"
 	"github.com/wavetermdev/waveterm/pkg/telemetry/telemetrydata"
 	"github.com/wavetermdev/waveterm/pkg/util/envutil"
 	"github.com/wavetermdev/waveterm/pkg/util/shellutil"
 	"github.com/wavetermdev/waveterm/pkg/util/utilfn"
-	"github.com/wavetermdev/waveterm/pkg/waveappstore"
-	"github.com/wavetermdev/waveterm/pkg/waveapputil"
 	"github.com/wavetermdev/waveterm/pkg/wavebase"
 	"github.com/wavetermdev/waveterm/pkg/wavejwt"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
@@ -56,7 +47,6 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/wsl"
 	"github.com/wavetermdev/waveterm/pkg/wslconn"
 	"github.com/wavetermdev/waveterm/pkg/wstore"
-	"github.com/wavetermdev/waveterm/tsunami/build"
 )
 
 var InvalidWslDistroNames = []string{"docker-desktop", "docker-desktop-data"}
@@ -408,18 +398,6 @@ func (ws *WshServer) FileJoinCommand(ctx context.Context, paths []string) (*wshr
 	return wshfs.Join(ctx, paths[0], paths[1:]...)
 }
 
-func (ws *WshServer) FileRestoreBackupCommand(ctx context.Context, data wshrpc.CommandFileRestoreBackupData) error {
-	expandedBackupPath, err := wavebase.ExpandHomeDir(data.BackupFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to expand backup file path: %w", err)
-	}
-	expandedRestorePath, err := wavebase.ExpandHomeDir(data.RestoreToFileName)
-	if err != nil {
-		return fmt.Errorf("failed to expand restore file path: %w", err)
-	}
-	return filebackup.RestoreBackup(expandedBackupPath, expandedRestorePath)
-}
-
 func (ws *WshServer) GetTempDirCommand(ctx context.Context, data wshrpc.CommandGetTempDirData) (string, error) {
 	tempDir := os.TempDir()
 	if data.FileName != "" {
@@ -561,12 +539,6 @@ func (ws *WshServer) SetConnectionsConfigCommand(ctx context.Context, data wshrp
 func (ws *WshServer) GetFullConfigCommand(ctx context.Context) (wconfig.FullConfigType, error) {
 	watcher := wconfig.GetWatcher()
 	return watcher.GetFullConfig(), nil
-}
-
-func (ws *WshServer) GetWaveAIModeConfigCommand(ctx context.Context) (wconfig.AIModeConfigUpdate, error) {
-	fullConfig := wconfig.GetWatcher().GetFullConfig()
-	resolvedConfigs := aiusechat.ComputeResolvedAIModeConfigs(fullConfig)
-	return wconfig.AIModeConfigUpdate{Configs: resolvedConfigs}, nil
 }
 
 func (ws *WshServer) ConnStatusCommand(ctx context.Context) ([]wshrpc.ConnStatus, error) {
@@ -984,75 +956,6 @@ func workspaceListInternal(ctx context.Context, includeUnsaved bool) ([]wshrpc.W
 	return rtn, nil
 }
 
-func (ws *WshServer) ListAllAppsCommand(ctx context.Context) ([]wshrpc.AppInfo, error) {
-	return waveappstore.ListAllApps()
-}
-
-func (ws *WshServer) ListAllEditableAppsCommand(ctx context.Context) ([]wshrpc.AppInfo, error) {
-	return waveappstore.ListAllEditableApps()
-}
-
-func (ws *WshServer) ListAllAppFilesCommand(ctx context.Context, data wshrpc.CommandListAllAppFilesData) (*wshrpc.CommandListAllAppFilesRtnData, error) {
-	if data.AppId == "" {
-		return nil, fmt.Errorf("must provide an appId to ListAllAppFilesCommand")
-	}
-	result, err := waveappstore.ListAllAppFiles(data.AppId)
-	if err != nil {
-		return nil, err
-	}
-	entries := make([]wshrpc.DirEntryOut, len(result.Entries))
-	for i, entry := range result.Entries {
-		entries[i] = wshrpc.DirEntryOut{
-			Name:         entry.Name,
-			Dir:          entry.Dir,
-			Symlink:      entry.Symlink,
-			Size:         entry.Size,
-			Mode:         entry.Mode,
-			Modified:     entry.Modified,
-			ModifiedTime: entry.ModifiedTime,
-		}
-	}
-	return &wshrpc.CommandListAllAppFilesRtnData{
-		Path:         result.Path,
-		AbsolutePath: result.AbsolutePath,
-		ParentDir:    result.ParentDir,
-		Entries:      entries,
-		EntryCount:   result.EntryCount,
-		TotalEntries: result.TotalEntries,
-		Truncated:    result.Truncated,
-	}, nil
-}
-
-func (ws *WshServer) ReadAppFileCommand(ctx context.Context, data wshrpc.CommandReadAppFileData) (*wshrpc.CommandReadAppFileRtnData, error) {
-	if data.AppId == "" {
-		return nil, fmt.Errorf("must provide an appId to ReadAppFileCommand")
-	}
-	fileData, err := waveappstore.ReadAppFile(data.AppId, data.FileName)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return &wshrpc.CommandReadAppFileRtnData{
-				NotFound: true,
-			}, nil
-		}
-		return nil, fmt.Errorf("failed to read app file: %w", err)
-	}
-	return &wshrpc.CommandReadAppFileRtnData{
-		Data64: base64.StdEncoding.EncodeToString(fileData.Contents),
-		ModTs:  fileData.ModTs,
-	}, nil
-}
-
-func (ws *WshServer) WriteAppFileCommand(ctx context.Context, data wshrpc.CommandWriteAppFileData) error {
-	if data.AppId == "" {
-		return fmt.Errorf("must provide an appId to WriteAppFileCommand")
-	}
-	contents, err := base64.StdEncoding.DecodeString(data.Data64)
-	if err != nil {
-		return fmt.Errorf("failed to decode data64: %w", err)
-	}
-	return waveappstore.WriteAppFile(data.AppId, data.FileName, contents)
-}
-
 func (ws *WshServer) WaveFileReadStreamCommand(ctx context.Context, data wshrpc.CommandWaveFileReadStreamData) (*wshrpc.WaveFileInfo, error) {
 	const maxStreamFileSize = 5 * 1024 * 1024
 
@@ -1106,220 +1009,12 @@ func (ws *WshServer) WaveFileReadStreamCommand(ctx context.Context, data wshrpc.
 	return rtnInfo, nil
 }
 
-func (ws *WshServer) WriteAppGoFileCommand(ctx context.Context, data wshrpc.CommandWriteAppGoFileData) (*wshrpc.CommandWriteAppGoFileRtnData, error) {
-	if data.AppId == "" {
-		return nil, fmt.Errorf("must provide an appId to WriteAppGoFileCommand")
-	}
-	contents, err := base64.StdEncoding.DecodeString(data.Data64)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode data64: %w", err)
-	}
-
-	formattedOutput := waveapputil.FormatGoCode(contents)
-
-	err = waveappstore.WriteAppFile(data.AppId, "app.go", formattedOutput)
-	if err != nil {
-		return nil, err
-	}
-
-	encoded := base64.StdEncoding.EncodeToString(formattedOutput)
-	return &wshrpc.CommandWriteAppGoFileRtnData{Data64: encoded}, nil
-}
-
-func (ws *WshServer) DeleteAppFileCommand(ctx context.Context, data wshrpc.CommandDeleteAppFileData) error {
-	if data.AppId == "" {
-		return fmt.Errorf("must provide an appId to DeleteAppFileCommand")
-	}
-	return waveappstore.DeleteAppFile(data.AppId, data.FileName)
-}
-
-func (ws *WshServer) RenameAppFileCommand(ctx context.Context, data wshrpc.CommandRenameAppFileData) error {
-	if data.AppId == "" {
-		return fmt.Errorf("must provide an appId to RenameAppFileCommand")
-	}
-	return waveappstore.RenameAppFile(data.AppId, data.FromFileName, data.ToFileName)
-}
-
-func (ws *WshServer) WriteAppSecretBindingsCommand(ctx context.Context, data wshrpc.CommandWriteAppSecretBindingsData) error {
-	if data.AppId == "" {
-		return fmt.Errorf("must provide an appId to WriteAppSecretBindingsCommand")
-	}
-	return waveappstore.WriteAppSecretBindings(data.AppId, data.Bindings)
-}
-
-func (ws *WshServer) DeleteBuilderCommand(ctx context.Context, builderId string) error {
-	if builderId == "" {
-		return fmt.Errorf("must provide a builderId to DeleteBuilderCommand")
-	}
-	buildercontroller.DeleteController(builderId)
-	return nil
-}
-
-func (ws *WshServer) StartBuilderCommand(ctx context.Context, data wshrpc.CommandStartBuilderData) error {
-	if data.BuilderId == "" {
-		return fmt.Errorf("must provide a builderId to StartBuilderCommand")
-	}
-	bc := buildercontroller.GetOrCreateController(data.BuilderId)
-	rtInfo := wstore.GetRTInfo(waveobj.MakeORef("builder", data.BuilderId))
-	if rtInfo == nil {
-		return fmt.Errorf("builder rtinfo not found for builderid: %s", data.BuilderId)
-	}
-	appId := rtInfo.BuilderAppId
-	if appId == "" {
-		return fmt.Errorf("builder appid not set for builderid: %s", data.BuilderId)
-	}
-	return bc.Start(ctx, appId, rtInfo.BuilderEnv)
-}
-
-func (ws *WshServer) StopBuilderCommand(ctx context.Context, builderId string) error {
-	if builderId == "" {
-		return fmt.Errorf("must provide a builderId to StopBuilderCommand")
-	}
-	bc := buildercontroller.GetController(builderId)
-	if bc == nil {
-		return nil
-	}
-	return bc.Stop()
-}
-
-func (ws *WshServer) RestartBuilderAndWaitCommand(ctx context.Context, data wshrpc.CommandRestartBuilderAndWaitData) (*wshrpc.RestartBuilderAndWaitResult, error) {
-	if data.BuilderId == "" {
-		return nil, fmt.Errorf("must provide a builderId to RestartBuilderAndWaitCommand")
-	}
-
-	bc := buildercontroller.GetOrCreateController(data.BuilderId)
-	rtInfo := wstore.GetRTInfo(waveobj.MakeORef("builder", data.BuilderId))
-	if rtInfo == nil {
-		return nil, fmt.Errorf("builder rtinfo not found for builderid: %s", data.BuilderId)
-	}
-
-	appId := rtInfo.BuilderAppId
-	if appId == "" {
-		return nil, fmt.Errorf("builder appid not set for builderid: %s", data.BuilderId)
-	}
-
-	result, err := bc.RestartAndWaitForBuild(ctx, appId, rtInfo.BuilderEnv)
-	if err != nil {
-		return nil, err
-	}
-
-	return &wshrpc.RestartBuilderAndWaitResult{
-		Success:      result.Success,
-		ErrorMessage: result.ErrorMessage,
-		BuildOutput:  result.BuildOutput,
-	}, nil
-}
-
-func (ws *WshServer) GetBuilderStatusCommand(ctx context.Context, builderId string) (*wshrpc.BuilderStatusData, error) {
-	if builderId == "" {
-		return nil, fmt.Errorf("must provide a builderId to GetBuilderStatusCommand")
-	}
-	bc := buildercontroller.GetOrCreateController(builderId)
-	status := bc.GetStatus()
-	return &status, nil
-}
-
-func (ws *WshServer) GetBuilderOutputCommand(ctx context.Context, builderId string) ([]string, error) {
-	if builderId == "" {
-		return nil, fmt.Errorf("must provide a builderId to GetBuilderOutputCommand")
-	}
-	bc := buildercontroller.GetOrCreateController(builderId)
-	return bc.GetOutput(), nil
-}
-
-func (ws *WshServer) CheckGoVersionCommand(ctx context.Context) (*wshrpc.CommandCheckGoVersionRtnData, error) {
-	watcher := wconfig.GetWatcher()
-	fullConfig := watcher.GetFullConfig()
-	goPath := fullConfig.Settings.TsunamiGoPath
-
-	result := build.CheckGoVersion(goPath)
-
-	return &wshrpc.CommandCheckGoVersionRtnData{
-		GoStatus:    result.GoStatus,
-		GoPath:      result.GoPath,
-		GoVersion:   result.GoVersion,
-		ErrorString: result.ErrorString,
-	}, nil
-}
-
-func (ws *WshServer) PublishAppCommand(ctx context.Context, data wshrpc.CommandPublishAppData) (*wshrpc.CommandPublishAppRtnData, error) {
-	publishedAppId, err := waveappstore.PublishDraft(data.AppId)
-	if err != nil {
-		return nil, fmt.Errorf("error publishing app: %w", err)
-	}
-	return &wshrpc.CommandPublishAppRtnData{
-		PublishedAppId: publishedAppId,
-	}, nil
-}
-
-func (ws *WshServer) MakeDraftFromLocalCommand(ctx context.Context, data wshrpc.CommandMakeDraftFromLocalData) (*wshrpc.CommandMakeDraftFromLocalRtnData, error) {
-	draftAppId, err := waveappstore.MakeDraftFromLocal(data.LocalAppId)
-	if err != nil {
-		return nil, fmt.Errorf("error making draft from local: %w", err)
-	}
-	return &wshrpc.CommandMakeDraftFromLocalRtnData{
-		DraftAppId: draftAppId,
-	}, nil
-}
-
 func (ws *WshServer) RecordTEventCommand(ctx context.Context, data telemetrydata.TEvent) error {
 	return nil
 }
 
 func (ws WshServer) SendTelemetryCommand(ctx context.Context) error {
 	return nil
-}
-
-func (ws *WshServer) WaveAIEnableTelemetryCommand(ctx context.Context) error {
-	// Enable telemetry in config
-	meta := waveobj.MetaMapType{
-		wconfig.ConfigKey_TelemetryEnabled: true,
-	}
-	err := wconfig.SetBaseConfigValue(meta)
-	if err != nil {
-		return fmt.Errorf("error setting telemetry enabled: %w", err)
-	}
-
-	// Record the telemetry event
-	event := telemetrydata.MakeTEvent("waveai:enabletelemetry", telemetrydata.TEventProps{})
-	err = telemetry.RecordTEvent(ctx, event)
-	if err != nil {
-		log.Printf("error recording waveai:enabletelemetry event: %v", err)
-	}
-
-	return nil
-}
-
-func (ws *WshServer) GetWaveAIChatCommand(ctx context.Context, data wshrpc.CommandGetWaveAIChatData) (*uctypes.UIChat, error) {
-	aiChat := chatstore.DefaultChatStore.Get(data.ChatId)
-	if aiChat == nil {
-		return nil, nil
-	}
-	uiChat, err := aiusechat.ConvertAIChatToUIChat(aiChat)
-	if err != nil {
-		return nil, fmt.Errorf("error converting AI chat to UI chat: %w", err)
-	}
-	return uiChat, nil
-}
-
-func (ws *WshServer) GetWaveAIRateLimitCommand(ctx context.Context) (*uctypes.RateLimitInfo, error) {
-	return aiusechat.GetGlobalRateLimit(), nil
-}
-
-func (ws *WshServer) WaveAIToolApproveCommand(ctx context.Context, data wshrpc.CommandWaveAIToolApproveData) error {
-	return aiusechat.UpdateToolApproval(data.ToolCallId, data.Approval)
-}
-
-func (ws *WshServer) WaveAIGetToolDiffCommand(ctx context.Context, data wshrpc.CommandWaveAIGetToolDiffData) (*wshrpc.CommandWaveAIGetToolDiffRtnData, error) {
-	originalContent, modifiedContent, err := aiusechat.CreateWriteTextFileDiff(ctx, data.ChatId, data.ToolCallId)
-	if err != nil {
-		return nil, err
-	}
-
-	return &wshrpc.CommandWaveAIGetToolDiffRtnData{
-		OriginalContents64: base64.StdEncoding.EncodeToString(originalContent),
-		ModifiedContents64: base64.StdEncoding.EncodeToString(modifiedContent),
-	}, nil
 }
 
 func (ws *WshServer) WshActivityCommand(ctx context.Context, data map[string]int) error {

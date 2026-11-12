@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package tsgen
 
@@ -10,7 +11,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/wavetermdev/waveterm/pkg/aiusechat/uctypes"
 	"github.com/wavetermdev/waveterm/pkg/eventbus"
 	"github.com/wavetermdev/waveterm/pkg/filestore"
 	"github.com/wavetermdev/waveterm/pkg/service"
@@ -52,8 +52,6 @@ var ExtraTypes = []any{
 	vdom.VDomBackendUpdate{},
 	waveobj.MetaTSType{},
 	waveobj.ObjRTInfo{},
-	uctypes.RateLimitInfo{},
-	wconfig.AIModeConfigUpdate{},
 	wshrpc.BlockJobStatusData{},
 }
 
