@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import * as WOS from "@/app/store/wos";
 import { ClientModel } from "@/app/store/client-model";
