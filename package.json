@@ -127,8 +127,5 @@
         "ws": "^8.21.0",
         "yaml": "^2.9.0"
     },
-    "packageManager": "npm@10.9.2",
-    "workspaces": [
-        "tsunami/frontend"
-    ]
+    "packageManager": "npm@10.9.2"
 }
