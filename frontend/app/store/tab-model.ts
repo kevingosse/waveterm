@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { WaveEnv, WaveEnvSubset } from "@/app/waveenv/waveenv";
 import { atom, Atom, PrimitiveAtom } from "jotai";
