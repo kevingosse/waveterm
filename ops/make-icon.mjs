@@ -1,63 +1,139 @@
 // Copyright 2026, Wavelet contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Regenerates the Windows app icon as a recoloured version of upstream's, so that Wavelet and an official Wave
-// install can be told apart on the taskbar. Always starts from upstream's originals (read from git), so running it
-// twice gives the same result.
+// Draws the Wavelet mark and writes every image the app uses for it:
 //
-//   node ops/make-icon.mjs [hue-rotation-in-degrees]
+//   build/icon.ico, build/icons/*.png      the app icon (white mark on a blue plate)
+//   public/logos/wavelet.png               the window icon on Linux
+//   frontend/app/asset/logo.svg            the mark on its own, for the About dialog and the launcher
+//   frontend/app/asset/wavelet-glyph.svg   the mark as a mask, for the "custom@wavelet" icon (see app.scss)
 //
-// The colours that are written by hand follow from the same rotation and have to be changed with it: the gradient
-// in frontend/app/asset/logo.svg and the workspace colour WaveletBlue in pkg/wcore/workspace.go (upstream's
-// #58C142 comes out as #00C6FF at the default 95 degrees).
+// The mark is a Ricker wavelet, psi(t) = (1 - t^2) exp(-t^2 / 2), drawn as one stroke. It is this project's own
+// drawing; nothing here is derived from upstream's logo.
+//
+//   node ops/make-icon.mjs
 
-import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import sharp from "sharp";
 
-const ForkBase = "9f1c9670d407be3b93cf090319a63ef30bf54d0e";
-const Sizes = [16, 32, 48, 64, 128, 256];
-const hue = Number(process.argv[2] ?? 95);
+// WaveletBlue in pkg/wcore/workspace.go is PlateFrom; change them together.
+const PlateFrom = "#00C6FF";
+const PlateTo = "#0077C8";
+const MarkFrom = "#0091CA";
+const MarkTo = "#00C6FF";
 
-function upstreamFile(path) {
-    return execFileSync("git", ["show", `${ForkBase}:${path}`], { maxBuffer: 16 * 1024 * 1024 });
+// how far psi dips below zero, relative to its peak of 1
+const TroughDepth = 2 * Math.exp(-1.5);
+
+const psi = (t) => (1 - t * t) * Math.exp((-t * t) / 2);
+const dpsi = (t) => (t ** 3 - 3 * t) * Math.exp((-t * t) / 2);
+const round = (v) => Math.round(v * 100) / 100;
+
+// The curve over [-T, T] as cubic Bezier segments. Each segment is the Hermite interpolant of psi, which needs far
+// fewer points than a polyline to look smooth.
+function markPath({ T, x0, x1, top, amp }) {
+    const segments = 20;
+    const sx = (x1 - x0) / (2 * T);
+    const X = (t) => x0 + (t + T) * sx;
+    const Y = (t) => top + amp * (1 - psi(t));
+    const h = (2 * T) / segments;
+    let d = `M${round(X(-T))} ${round(Y(-T))}`;
+    for (let i = 0; i < segments; i++) {
+        const a = -T + i * h;
+        const b = a + h;
+        const c1 = `${round(X(a) + (sx * h) / 3)} ${round(Y(a) - (amp * dpsi(a) * h) / 3)}`;
+        const c2 = `${round(X(b) - (sx * h) / 3)} ${round(Y(b) + (amp * dpsi(b) * h) / 3)}`;
+        d += `C${c1} ${c2} ${round(X(b))} ${round(Y(b))}`;
+    }
+    return d;
 }
 
-const pngs = [];
-for (const size of Sizes) {
-    const recoloured = await sharp(upstreamFile(`build/icons/${size}x${size}.png`))
-        .modulate({ hue })
+// The mark alone, fitted into a box with the stroke just touching its edges.
+function markSvg({ width, height, stroke, T, paint, defs = "", comment = "" }) {
+    const amp = (height - stroke) / (1 + TroughDepth);
+    const d = markPath({ T, x0: stroke / 2, x1: width - stroke / 2, top: stroke / 2, amp });
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" fill="none">
+${comment}${defs}<path d="${d}" stroke="${paint}" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
+`;
+}
+
+// The app icon on a 256 grid. Small sizes get a heavier stroke, a shorter stretch of the curve and a plate that
+// reaches the edges, or the mark turns into a smudge.
+function iconSvg(size) {
+    let p = { T: 3.4, stroke: 24, amp: 92, inset: 44, margin: 8, rx: 56 };
+    if (size <= 24) {
+        p = { T: 2.8, stroke: 34, amp: 98, inset: 50, margin: 0, rx: 58 };
+    } else if (size <= 48) {
+        p = { T: 3.0, stroke: 30, amp: 96, inset: 46, margin: 0, rx: 58 };
+    }
+    // centres the curve's extent, peak to trough, on the plate
+    const top = 128 - (p.amp * (1 + TroughDepth)) / 2;
+    const d = markPath({ T: p.T, x0: p.inset, x1: 256 - p.inset, top, amp: p.amp });
+    const side = 256 - 2 * p.margin;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<defs><linearGradient id="plate" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${PlateFrom}"/><stop offset="1" stop-color="${PlateTo}"/></linearGradient></defs>
+<rect x="${p.margin}" y="${p.margin}" width="${side}" height="${side}" rx="${p.rx}" fill="url(#plate)"/>
+<path d="${d}" fill="none" stroke="#FFFFFF" stroke-width="${p.stroke}" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+}
+
+function iconPng(size) {
+    // rasterised at the target size, so large icons are not an enlarged 256 pixel image
+    return sharp(Buffer.from(iconSvg(size)), { density: (72 * size) / 256 })
+        .resize(size, size)
         .png()
         .toBuffer();
-    writeFileSync(`build/icons/${size}x${size}.png`, recoloured);
-    pngs.push({ size, data: recoloured });
 }
-writeFileSync(
-    "build/icons/512x512.png",
-    await sharp(upstreamFile("build/icons/512x512.png")).modulate({ hue }).png().toBuffer()
-);
-// the window icon on Linux, the only logo image the app loads at run time
-writeFileSync(
-    "public/logos/wavelet.png",
-    await sharp(upstreamFile("public/logos/wave-logo-dark.png")).modulate({ hue }).png().toBuffer()
-);
 
 // An .ico is a small directory followed by the images, which may be stored as PNG.
-const header = Buffer.alloc(6);
-header.writeUInt16LE(1, 2);
-header.writeUInt16LE(pngs.length, 4);
-const entries = [];
-let offset = header.length + 16 * pngs.length;
-for (const { size, data } of pngs) {
-    const entry = Buffer.alloc(16);
-    entry.writeUInt8(size === 256 ? 0 : size, 0);
-    entry.writeUInt8(size === 256 ? 0 : size, 1);
-    entry.writeUInt16LE(1, 4);
-    entry.writeUInt16LE(32, 6);
-    entry.writeUInt32LE(data.length, 8);
-    entry.writeUInt32LE(offset, 12);
-    entries.push(entry);
-    offset += data.length;
+function ico(images) {
+    const header = Buffer.alloc(6);
+    header.writeUInt16LE(1, 2);
+    header.writeUInt16LE(images.length, 4);
+    const entries = [];
+    let offset = header.length + 16 * images.length;
+    for (const { size, data } of images) {
+        const entry = Buffer.alloc(16);
+        entry.writeUInt8(size === 256 ? 0 : size, 0);
+        entry.writeUInt8(size === 256 ? 0 : size, 1);
+        entry.writeUInt16LE(1, 4);
+        entry.writeUInt16LE(32, 6);
+        entry.writeUInt32LE(data.length, 8);
+        entry.writeUInt32LE(offset, 12);
+        entries.push(entry);
+        offset += data.length;
+    }
+    return Buffer.concat([header, ...entries, ...images.map((image) => image.data)]);
 }
-writeFileSync("build/icon.ico", Buffer.concat([header, ...entries, ...pngs.map((p) => p.data)]));
-console.log(`wrote build/icon.ico, build/icons/*.png and public/logos/wavelet.png (hue rotated by ${hue} degrees)`);
+
+// 20, 24 and 40 are what Windows asks for at 125% and 150% scaling
+const icoImages = [];
+for (const size of [16, 20, 24, 32, 40, 48, 64, 128, 256]) {
+    icoImages.push({ size, data: await iconPng(size) });
+}
+writeFileSync("build/icon.ico", ico(icoImages));
+for (const size of [16, 32, 48, 64, 128, 256, 512]) {
+    writeFileSync(`build/icons/${size}x${size}.png`, await iconPng(size));
+}
+writeFileSync("public/logos/wavelet.png", await iconPng(1024));
+
+const generated = "<!-- Copyright 2026, Wavelet contributors. SPDX-License-Identifier: Apache-2.0 -->\n<!-- Written by ops/make-icon.mjs; change it there. -->\n";
+writeFileSync(
+    "frontend/app/asset/logo.svg",
+    markSvg({
+        width: 64,
+        height: 44,
+        stroke: 6,
+        T: 3.4,
+        paint: "url(#mark)",
+        defs: `<defs><linearGradient id="mark" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${MarkFrom}" /><stop offset="1" stop-color="${MarkTo}" /></linearGradient></defs>\n`,
+        comment: generated,
+    })
+);
+// shown at the size of a line of text, so it is drawn heavier than the logo
+writeFileSync(
+    "frontend/app/asset/wavelet-glyph.svg",
+    markSvg({ width: 64, height: 44, stroke: 8, T: 3.0, paint: "#000", comment: generated })
+);
+console.log("wrote the app icon (build/, public/logos/) and the mark (frontend/app/asset/)");

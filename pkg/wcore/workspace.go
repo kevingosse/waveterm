@@ -35,7 +35,7 @@ var WorkspaceColors = [...]string{
 }
 
 var WorkspaceIcons = [...]string{
-	"custom@wave-logo-solid",
+	"custom@wavelet", // the app's own mark, drawn by frontend/app/app.scss
 	"triangle",
 	"star",
 	"heart",

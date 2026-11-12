@@ -1,5 +1,6 @@
 // Copyright 2024, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 @use "reset.scss";
 @use "theme.scss";
@@ -43,6 +44,17 @@ body {
 
 *::-webkit-scrollbar-thumb:hover {
     background-color: var(--scrollbar-thumb-hover-color);
+}
+
+// The Wavelet mark as an icon ("custom@wavelet"). It is a mask rather than a glyph in the icon font, so that the
+// font does not have to be rebuilt; like a glyph, it takes the colour of the text.
+.fa-kit.fa-wavelet::before {
+    content: "";
+    display: inline-block;
+    width: 1.45em;
+    height: 1em;
+    background-color: currentColor;
+    mask: url("./asset/wavelet-glyph.svg") center / contain no-repeat;
 }
 
 .flex-spacer {

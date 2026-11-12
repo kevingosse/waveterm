@@ -71,6 +71,12 @@ try {
     $shortcut.WorkingDirectory = $LiveAppDir
     $shortcut.Description = "$AppName terminal"
     $shortcut.Save()
+    # Explorer caches icons by path, and the path of the executable never changes; without this a new app icon
+    # does not show up on the Start menu or on a pinned taskbar button
+    $iconRefresh = Join-Path $env:SystemRoot 'System32\ie4uinit.exe'
+    if (Test-Path $iconRefresh) {
+        Start-Process -FilePath $iconRefresh -ArgumentList '-show' -WindowStyle Hidden
+    }
 
     # Antivirus holds a Go binary it has not seen at its path for about ten seconds on first launch. Take that now, in
     # the background, instead of on the next start of the app (wavesrv) or the first wsh command in a terminal.

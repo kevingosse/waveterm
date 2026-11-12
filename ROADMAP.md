@@ -30,9 +30,11 @@ Windows x64 is built and tested, plus `wsh` for Linux x64 and arm64 (WSL, SSH ho
 **Deployed from source as an unpacked directory.** No installer and no updater. `ops/deploy.ps1` builds, smoke-tests,
 stages and swaps; `ops/rollback.ps1` goes back. Versions are `0.20.<commits since the fork point>`.
 
-**The name is Wavelet, and its colour is blue.** The icon is upstream's logo with the hue rotated
-(`ops/make-icon.mjs`), so that the fork and an official install can be told apart at a glance. The logo is blue
-wherever the app shows it; the interface accent (focus borders, buttons, links) is still upstream's green.
+**The name is Wavelet, its colour is blue, and its mark is its own.** The mark is a Ricker wavelet drawn as a single
+stroke, white on a blue plate for the app icon and on its own inside the app. `ops/make-icon.mjs` draws it from the
+formula and writes every image that shows it. It replaced a recoloured copy of upstream's logo: the licence covers
+upstream's code, not its name or logo, and the fork and an official install should be easy to tell apart. The
+interface accent (focus borders, buttons, links) stays upstream's green, by the maintainer's choice.
 
 ## Phase 0: foundation (done)
 
@@ -116,6 +118,8 @@ shortcut that `ops/apply-staged.ps1` creates. Not checked on screen yet.
 Small things left over from making the fork its own, none of them urgent:
 
 - `wsh` help text still says "Wave Terminal".
+- The icon font in `public/fontawesome` still contains upstream's logo as glyphs. Nothing displays them (workspaces
+  that used one were moved to the fork's mark by migration 14); taking them out means rebuilding the font.
 - The settings views, the durable-session popup and the ARM64 warning link to upstream's documentation site, which
   describes upstream's product, including features that are gone here.
 - `electron-builder.config.cjs` still carries upstream's macOS and Linux sections, which nothing builds.
