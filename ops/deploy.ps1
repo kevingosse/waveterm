@@ -20,6 +20,8 @@ param(
     # deploy what ops\package.ps1 already built
     [switch]$SkipPackage,
     [switch]$SkipSmoke,
+    # smoke-test against a copy of the installed profile; use it when the database schema or the layout code changed
+    [switch]$WithRealData,
     # build with uncommitted changes (the build is then not tagged)
     [switch]$AllowDirty,
     # when the installed app is running: close it and start the new version once the swap is done
@@ -48,7 +50,7 @@ if ($builtVersion -ne $version) {
 }
 
 if (-not $SkipSmoke) {
-    & (Join-Path $PSScriptRoot 'smoke.ps1') -AppDir $built
+    & (Join-Path $PSScriptRoot 'smoke.ps1') -AppDir $built -WithRealData:$WithRealData
 }
 
 Write-Step "staging $AppName $version"

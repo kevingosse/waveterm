@@ -12,12 +12,18 @@ while the installed app is open and never touches its data.
 
 Passes when a window comes up, a new terminal block reaches a shell prompt, and nothing fatal is in the log.
 Running the build here also gets antivirus first-run scanning of the new binaries out of the way.
+
+With -WithRealData the throwaway profile starts as a copy of the installed app's databases and configuration, which
+shows whether the build migrates and loads the real tabs. Use it for builds that change the database schema or the
+layout code. The copy behaves like the real thing: the shells of its active tab start, and so do any blocks set to
+run a command on start.
 #>
 param(
     [string]$AppDir,
     [int]$Port = 9444,
     # leave the instance running and its profile on disk, for a closer look
-    [switch]$Keep
+    [switch]$Keep,
+    [switch]$WithRealData
 )
 
 . $PSScriptRoot\lib.ps1
@@ -44,6 +50,25 @@ function Remove-SmokeProfile {
 # anything still running from this directory is a leftover of an earlier smoke run
 Stop-ProcessesUnder $AppDir
 Remove-SmokeProfile
+
+$countTabs = "const { DatabaseSync } = require('node:sqlite'); const db = new DatabaseSync(process.argv[1], { readOnly: true }); console.log(db.prepare('select count(*) c from db_tab').get().c);"
+$expectedTabs = $null
+if ($WithRealData) {
+    $real = Get-ProfilePaths
+    $realDb = Join-Path $real.Data 'db\waveterm.db'
+    if (-not (Test-Path $realDb)) {
+        throw "no installed profile to copy ($realDb does not exist)"
+    }
+    Write-Step "copying the installed profile into the smoke profile"
+    $smokeDb = Join-Path $profilePaths.Data 'db'
+    Copy-SqliteSnapshot $realDb (Join-Path $smokeDb 'waveterm.db')
+    Copy-SqliteSnapshot (Join-Path $real.Data 'db\filestore.db') (Join-Path $smokeDb 'filestore.db')
+    New-Item -ItemType Directory -Force $profilePaths.Config | Out-Null
+    if (Test-Path $real.Config) {
+        Copy-Item -Path (Join-Path $real.Config '*') -Destination $profilePaths.Config -Recurse -Force
+    }
+    $expectedTabs = [int](& node --no-warnings -e $countTabs (Join-Path $smokeDb 'waveterm.db'))
+}
 
 Write-Step "launching $exe (profile: smoke, debug port: $Port)"
 $env:WAVELET_PROFILE = 'smoke'
@@ -73,6 +98,14 @@ try {
     }
     $windowAfter = ((Get-Date) - $launched).TotalSeconds
     Write-Step ("window shown {0:N1}s after launch" -f $windowAfter)
+
+    if ($WithRealData) {
+        $shownTabs = [int](& node (Join-Path $PSScriptRoot 'cdp.mjs') eval active 'String(globalStore.get(globalAtoms.workspace)?.tabids?.length ?? 0)' --port $Port)
+        Write-Step "tabs: $expectedTabs in the copied profile, $shownTabs shown"
+        if ($shownTabs -ne $expectedTabs -or $shownTabs -eq 0) {
+            throw "the copied profile has $expectedTabs tabs but the app shows $shownTabs"
+        }
+    }
 
     Write-Step "timing a new terminal block to its first prompt"
     $timing = & node (Join-Path $PSScriptRoot 'measure-prompt.mjs') --port $Port --runs 2 --target active

@@ -64,18 +64,18 @@ function logTime(line) {
     return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6], +m[7]).getTime() : null;
 }
 
-// Resolves in the renderer once the terminal that the tab restored shows a prompt.
+// Resolves in the renderer once the restored terminal shows the prompt of this session's shell.
+// The terminal has to be past loading its saved state first: until then it can briefly show the screen of the
+// previous session, prompt included. Once loaded, what it shows is this session's output only, so a prompt on the
+// cursor line is the live one.
 const waitForPrompt = `(async () => {
     const deadline = performance.now() + 30000;
     while (performance.now() < deadline) {
         const tw = window.term;
-        if (tw != null) {
+        if (tw != null && tw.loaded) {
             const buf = tw.terminal.buffer.active;
-            let text = "";
-            for (let i = 0; i < Math.min(buf.length, 60); i++) {
-                text += buf.getLine(i).translateToString(true) + "\\n";
-            }
-            if (/^PS .*>|[$#%>] ?$/m.test(text.trimEnd())) {
+            const cursorLine = buf.getLine(buf.baseY + buf.cursorY)?.translateToString(true) ?? "";
+            if (/^PS .*> ?$|[$#%>] ?$/.test(cursorLine)) {
                 const nav = performance.getEntriesByType("navigation")[0];
                 return JSON.stringify({
                     promptAt: Math.round(performance.timeOrigin + performance.now()),
