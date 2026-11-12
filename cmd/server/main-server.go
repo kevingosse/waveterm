@@ -309,6 +309,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "WAVESRV-ESTART ws:%s web:%s version:%s buildtime:%s\n", wsListener.Addr(), webListener.Addr(), WaveVersion, BuildTime)
 	}()
 	go wshutil.RunWshRpcOverListener(unixListener, nil)
+	go blockcontroller.PrestartActiveTabShells(context.Background())
 	web.RunWebServer(webListener) // blocking
 	runtime.KeepAlive(waveLock)
 }
