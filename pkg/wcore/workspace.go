@@ -21,10 +21,13 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
 
+// the colour of the app icon; the starter workspace shows the logo in it
+const WaveletBlue = "#00C6FF"
+
 var WorkspaceColors = [...]string{
+	WaveletBlue,
 	"#58C142", // Green (accent)
 	"#00FFDB", // Teal
-	"#429DFF", // Blue
 	"#BF55EC", // Purple
 	"#FF453A", // Red
 	"#FF9500", // Orange

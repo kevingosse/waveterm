@@ -6,6 +6,10 @@
 // twice gives the same result.
 //
 //   node ops/make-icon.mjs [hue-rotation-in-degrees]
+//
+// The colours that are written by hand follow from the same rotation and have to be changed with it: the gradient
+// in frontend/app/asset/logo.svg and the workspace colour WaveletBlue in pkg/wcore/workspace.go (upstream's
+// #58C142 comes out as #00C6FF at the default 95 degrees).
 
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -32,6 +36,11 @@ writeFileSync(
     "build/icons/512x512.png",
     await sharp(upstreamFile("build/icons/512x512.png")).modulate({ hue }).png().toBuffer()
 );
+// the window icon on Linux, the only logo image the app loads at run time
+writeFileSync(
+    "public/logos/wavelet.png",
+    await sharp(upstreamFile("public/logos/wave-logo-dark.png")).modulate({ hue }).png().toBuffer()
+);
 
 // An .ico is a small directory followed by the images, which may be stored as PNG.
 const header = Buffer.alloc(6);
@@ -51,4 +60,4 @@ for (const { size, data } of pngs) {
     offset += data.length;
 }
 writeFileSync("build/icon.ico", Buffer.concat([header, ...entries, ...pngs.map((p) => p.data)]));
-console.log(`wrote build/icon.ico and build/icons/*.png (hue rotated by ${hue} degrees)`);
+console.log(`wrote build/icon.ico, build/icons/*.png and public/logos/wavelet.png (hue rotated by ${hue} degrees)`);
