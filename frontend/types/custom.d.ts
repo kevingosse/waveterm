@@ -13,9 +13,7 @@ declare global {
         workspaceId: jotai.Atom<string>; // derived from window WOS object
         workspace: jotai.Atom<Workspace>; // driven from workspaceId via WOS
         fullConfigAtom: jotai.PrimitiveAtom<FullConfigType>; // driven from WOS, settings -- updated via WebSocket
-        waveaiModeConfigAtom: jotai.PrimitiveAtom<Record<string, AIModeConfigType>>; // resolved AI mode configs -- updated via WebSocket
         settingsAtom: jotai.Atom<SettingsType>; // derrived from fullConfig
-        hasCustomAIPresetsAtom: jotai.Atom<boolean>; // derived from fullConfig
         hasConfigErrors: jotai.Atom<boolean>; // derived from fullConfig
         staticTabId: jotai.Atom<string>;
         isFullScreen: jotai.PrimitiveAtom<boolean>;
@@ -27,7 +25,6 @@ declare global {
         modalOpen: jotai.PrimitiveAtom<boolean>;
         allConnStatus: jotai.Atom<ConnStatus[]>;
         reinitVersion: jotai.PrimitiveAtom<number>;
-        waveAIRateLimitInfoAtom: jotai.PrimitiveAtom<RateLimitInfo>;
     };
 
     type ThrottledValueAtom<T> = jotai.WritableAtom<T, [update: jotai.SetStateAction<T>], void>;
@@ -115,7 +112,6 @@ declare global {
         captureScreenshot(rect: Electron.Rectangle): Promise<string>; // capture-screenshot
         setKeyboardChordMode: () => void; // set-keyboard-chord-mode
         clearWebviewStorage: (webContentsId: number) => Promise<void>; // clear-webview-storage
-        setWaveAIOpen: (isOpen: boolean) => void; // set-waveai-open
         incrementTermCommands: (opts?: { isRemote?: boolean; isWsl?: boolean; isDurable?: boolean }) => void; // increment-term-commands
         nativePaste: () => void; // native-paste
         doRefresh: () => void; // do-refresh
@@ -450,28 +446,6 @@ declare global {
         closeAction?: () => void;
         showDismiss?: boolean;
     };
-
-    type AIMessage = {
-        messageid: string;
-        parts: AIMessagePart[];
-    };
-
-    type AIMessagePart =
-        | {
-              type: "text";
-              text: string;
-          }
-        | {
-              type: "file";
-              mimetype: string; // required
-              filename?: string;
-              data?: string; // base64 encoded data
-              url?: string;
-              size?: number;
-              previewurl?: string;
-          };
-
-    type AIModeConfigWithMode = { mode: string } & AIModeConfigType;
 }
 
 export {};

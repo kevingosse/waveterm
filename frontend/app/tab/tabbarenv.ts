@@ -29,7 +29,7 @@ export type TabBarEnv = WaveEnvSubset<{
         updaterStatusAtom: WaveEnv["atoms"]["updaterStatusAtom"];
     };
     wos: WaveEnv["wos"];
-    getSettingsKeyAtom: SettingsKeyAtomFnType<"app:hideaibutton" | "app:tabbar" | "tab:confirmclose" | "window:showmenubar">;
+    getSettingsKeyAtom: SettingsKeyAtomFnType<"app:tabbar" | "tab:confirmclose" | "window:showmenubar">;
     showContextMenu: WaveEnv["showContextMenu"];
     isWindows: WaveEnv["isWindows"];
     isMacOS: WaveEnv["isMacOS"];

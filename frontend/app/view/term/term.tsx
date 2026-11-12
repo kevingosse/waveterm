@@ -1,7 +1,7 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
-import ClaudeColorSvg from "@/app/asset/claude-color.svg";
 import { SubBlock } from "@/app/block/block";
 import type { BlockNodeModel } from "@/app/block/blocktypes";
 import { NullErrorBoundary } from "@/app/element/errorboundary";
@@ -34,16 +34,6 @@ interface TerminalViewProps {
     blockId: string;
     model: TermViewModel;
 }
-
-const TermClaudeIcon = React.memo(() => {
-    return (
-        <div className="[&_svg]:w-[15px] [&_svg]:h-[15px]" aria-hidden="true">
-            <ClaudeColorSvg />
-        </div>
-    );
-});
-
-TermClaudeIcon.displayName = "TermClaudeIcon";
 
 const TermResyncHandler = React.memo(({ blockId, model }: TerminalViewProps) => {
     const connStatus = jotai.useAtomValue(model.connStatus);
@@ -401,4 +391,4 @@ const TerminalView = ({ blockId, model }: ViewComponentProps<TermViewModel>) => 
     );
 };
 
-export { TermClaudeIcon, TerminalView };
+export { TerminalView };

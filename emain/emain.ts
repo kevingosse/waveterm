@@ -172,8 +172,6 @@ function logActiveState() {
         const astate = getActivityState();
         const activity: ActivityUpdate = { openminutes: 1 };
         const ww = focusedWaveWindow;
-        const activeTabView = ww?.activeTabView;
-        const isWaveAIOpen = activeTabView?.isWaveAIOpen ?? false;
 
         if (astate.wasInFg) {
             activity.fgminutes = 1;
@@ -207,12 +205,6 @@ function logActiveState() {
         }
         if (termCmdDurableCount > 0) {
             props["activity:termcommands:durable"] = termCmdDurableCount;
-        }
-        if (astate.wasActive && isWaveAIOpen) {
-            props["activity:waveaiactiveminutes"] = 1;
-        }
-        if (astate.wasInFg && isWaveAIOpen) {
-            props["activity:waveaifgminutes"] = 1;
         }
 
         try {

@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import Logo from "@/app/asset/logo.svg";
 import { Button } from "@/app/element/button";
@@ -13,7 +14,6 @@ import { modalsModel } from "@/app/store/modalmodel";
 import * as WOS from "@/app/store/wos";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
-import { WorkspaceLayoutModel } from "@/app/workspace/workspace-layout-model";
 import * as services from "@/store/services";
 import { fireAndForget } from "@/util/util";
 import { atom, PrimitiveAtom, useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -60,9 +60,6 @@ const InitPage = ({
     const acceptTos = () => {
         if (!clientData?.tosagreed) {
             fireAndForget(() => services.ClientService.AgreeTos());
-        }
-        if (telemetryEnabled) {
-            WorkspaceLayoutModel.getInstance().setAIPanelVisible(true);
         }
         setPageName(telemetryEnabled ? "features" : "notelemetrystar");
     };

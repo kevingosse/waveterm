@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { RpcApi } from "@/app/store/wshclientapi";
 import { adaptFromElectronKeyEvent, checkKeyPressed } from "@/util/keyutil";
@@ -118,7 +119,6 @@ export function getWaveTabViewByWebContentsId(webContentsId: number): WaveTabVie
 export class WaveTabView extends WebContentsView {
     waveWindowId: string; // this will be set for any tabviews that are initialized. (unset for the hot spare)
     isActiveTab: boolean;
-    isWaveAIOpen: boolean;
     private _waveTabId: string; // always set, WaveTabViews are unique per tab
     lastUsedTs: number; // ts milliseconds
     createdTs: number; // ts milliseconds
@@ -142,7 +142,6 @@ export class WaveTabView extends WebContentsView {
             },
         });
         this.createdTs = Date.now();
-        this.isWaveAIOpen = false;
         this.savedInitOpts = null;
         this.initPromise = new Promise((resolve, _) => {
             this.initResolve = resolve;

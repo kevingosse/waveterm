@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { BlockNodeModel } from "@/app/block/blocktypes";
 import { globalStore } from "@/app/store/jotaiStore";
@@ -32,29 +33,6 @@ export type ConfigFile = {
 
 export const SecretNameRegex = /^[A-Za-z][A-Za-z0-9_]*$/;
 
-function validateAiJson(parsed: any): ValidationResult {
-    const keys = Object.keys(parsed);
-    for (const key of keys) {
-        if (!key.startsWith("ai@")) {
-            return { error: `Invalid key "${key}": all top-level keys must start with "ai@"` };
-        }
-    }
-    return { success: true };
-}
-
-function validateWaveAiJson(parsed: any): ValidationResult {
-    const keys = Object.keys(parsed);
-    const keyPattern = /^[a-zA-Z0-9_@.-]+$/;
-    for (const key of keys) {
-        if (!keyPattern.test(key)) {
-            return {
-                error: `Invalid key "${key}": keys must only contain letters, numbers, underscores, @, dots, and hyphens`,
-            };
-        }
-    }
-    return { success: true };
-}
-
 function makeConfigFiles(isWindows: boolean): ConfigFile[] {
     return [
         {
@@ -80,16 +58,6 @@ function makeConfigFiles(isWindows: boolean): ConfigFile[] {
             hasJsonView: true,
         },
         {
-            name: "Wave AI Modes",
-            path: "waveai.json",
-            language: "json",
-            description: "Local models and BYOK",
-            docsUrl: "https://docs.waveterm.dev/waveai-modes",
-            validator: validateWaveAiJson,
-            hasJsonView: true,
-            // visualComponent: WaveAIVisualContent,
-        },
-        {
             name: "Tab Backgrounds",
             path: "backgrounds.json",
             language: "json",
@@ -112,15 +80,6 @@ const deprecatedConfigFiles: ConfigFile[] = [
         path: "presets.json",
         language: "json",
         deprecated: true,
-        hasJsonView: true,
-    },
-    {
-        name: "AI Presets",
-        path: "presets/ai.json",
-        language: "json",
-        deprecated: true,
-        docsUrl: "https://docs.waveterm.dev/ai-presets",
-        validator: validateAiJson,
         hasJsonView: true,
     },
 ];

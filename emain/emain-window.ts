@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { ClientService, ObjectService, WindowService, WorkspaceService } from "@/app/store/services";
 import { waveEventSubscribeSingle } from "@/app/store/wps";
@@ -774,13 +775,6 @@ ipcMain.on("create-tab", async (event, _opts) => {
     }
     event.returnValue = true;
     return null;
-});
-
-ipcMain.on("set-waveai-open", (event, isOpen: boolean) => {
-    const tabView = getWaveTabViewByWebContentsId(event.sender.id);
-    if (tabView) {
-        tabView.isWaveAIOpen = isOpen;
-    }
 });
 
 ipcMain.handle("close-tab", async (event, workspaceId: string, tabId: string, confirmClose: boolean) => {

@@ -192,8 +192,6 @@ async function initWave(initOpts: WaveInitOpts) {
     const fullConfig = await RpcApi.GetFullConfigCommand(TabRpcClient);
     console.log("fullconfig", fullConfig);
     globalStore.set(atoms.fullConfigAtom, fullConfig);
-    const waveaiModeConfig = await RpcApi.GetWaveAIModeConfigCommand(TabRpcClient);
-    globalStore.set(atoms.waveaiModeConfigAtom, waveaiModeConfig.configs);
     console.log("Wave First Render");
     let firstRenderResolveFn: () => void = null;
     const firstRenderPromise = new Promise<void>((resolve) => {

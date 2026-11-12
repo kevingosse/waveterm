@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { BlockModel } from "@/app/block/block-model";
 import { BlockFrame_Header } from "@/app/block/blockframe-header";
@@ -10,7 +11,6 @@ import { getBlockComponentModel, globalStore, useBlockAtom } from "@/app/store/g
 import { useTabModel } from "@/app/store/tab-model";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
-import { WorkspaceLayoutModel } from "@/app/workspace/workspace-layout-model";
 import { ErrorBoundary } from "@/element/errorboundary";
 import { NodeModel } from "@/layout/index";
 import { makeORef } from "@/store/wos";
@@ -95,7 +95,6 @@ const BlockFrame_Default_Component = (props: BlockFrameProps) => {
     const waveEnv = useWaveEnv<BlockEnv>();
     const { nodeModel, viewModel, blockModel, preview, numBlocksInTab, children } = props;
     const isFocused = jotai.useAtomValue(nodeModel.isFocused);
-    const aiPanelVisible = jotai.useAtomValue(WorkspaceLayoutModel.getInstance().panelVisibleAtom);
     const metaView = jotai.useAtomValue(waveEnv.getBlockMetaKeyAtom(nodeModel.blockId, "view"));
     const viewIconUnion = util.useAtomValueSafe(viewModel?.viewIcon) ?? blockViewToIcon(metaView);
     const customBg = util.useAtomValueSafe(viewModel?.blockBg);
@@ -170,7 +169,7 @@ const BlockFrame_Default_Component = (props: BlockFrameProps) => {
             className={clsx("block", "block-frame-default", "block-" + nodeModel.blockId, {
                 "block-focused": isFocused || preview,
                 "block-preview": preview,
-                "block-no-highlight": numBlocksInTab === 1 && !aiPanelVisible,
+                "block-no-highlight": numBlocksInTab === 1,
                 ephemeral: isEphemeral,
                 magnified: isMagnified,
             })}
