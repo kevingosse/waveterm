@@ -16,7 +16,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -1264,11 +1263,7 @@ func (ws *WshServer) MakeDraftFromLocalCommand(ctx context.Context, data wshrpc.
 }
 
 func (ws *WshServer) RecordTEventCommand(ctx context.Context, data telemetrydata.TEvent) error {
-	err := telemetry.RecordTEvent(ctx, &data)
-	if err != nil {
-		log.Printf("error recording telemetry event: %v", err)
-	}
-	return err
+	return nil
 }
 
 func (ws WshServer) SendTelemetryCommand(ctx context.Context) error {
@@ -1327,43 +1322,11 @@ func (ws *WshServer) WaveAIGetToolDiffCommand(ctx context.Context, data wshrpc.C
 	}, nil
 }
 
-var wshActivityRe = regexp.MustCompile(`^[a-z:#]+$`)
-
 func (ws *WshServer) WshActivityCommand(ctx context.Context, data map[string]int) error {
-	if len(data) == 0 {
-		return nil
-	}
-	props := telemetrydata.TEventProps{}
-	for key, value := range data {
-		if len(key) > 20 {
-			delete(data, key)
-		}
-		if !wshActivityRe.MatchString(key) {
-			delete(data, key)
-		}
-		if value != 1 {
-			delete(data, key)
-		}
-		if strings.HasSuffix(key, "#error") {
-			props.WshCmd = strings.TrimSuffix(key, "#error")
-			props.WshErrorCount = 1
-		} else {
-			props.WshCmd = key
-		}
-	}
-	activityUpdate := wshrpc.ActivityUpdate{
-		WshCmds: data,
-	}
-	telemetry.GoUpdateActivityWrap(activityUpdate, "wsh-activity")
-	telemetry.GoRecordTEventWrap(&telemetrydata.TEvent{
-		Event: telemetry.WshRunEventName,
-		Props: props,
-	})
 	return nil
 }
 
 func (ws *WshServer) ActivityCommand(ctx context.Context, activity wshrpc.ActivityUpdate) error {
-	telemetry.GoUpdateActivityWrap(activity, "wshrpc-activity")
 	return nil
 }
 
