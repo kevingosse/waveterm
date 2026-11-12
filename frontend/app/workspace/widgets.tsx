@@ -288,19 +288,6 @@ const SettingsFloatingWindow = memo(
                 },
             },
             {
-                icon: "lightbulb",
-                label: "Tips",
-                onClick: () => {
-                    const blockDef: BlockDef = {
-                        meta: {
-                            view: "tips",
-                        },
-                    };
-                    env.createBlock(blockDef, true, true);
-                    onClose();
-                },
-            },
-            {
                 icon: "lock",
                 label: "Secrets",
                 onClick: () => {
@@ -319,19 +306,6 @@ const SettingsFloatingWindow = memo(
                 label: "Release Notes",
                 onClick: () => {
                     modalsModel.pushModal("UpgradeOnboardingPatch", { isReleaseNotes: true });
-                    onClose();
-                },
-            },
-            {
-                icon: "circle-question",
-                label: "Help",
-                onClick: () => {
-                    const blockDef: BlockDef = {
-                        meta: {
-                            view: "help",
-                        },
-                    };
-                    env.createBlock(blockDef);
                     onClose();
                 },
             },
