@@ -84,7 +84,14 @@ clumsy), and what window management lacks today.
 
 ## Open questions
 
-- **Antivirus and fresh builds.** Every new build is a new unsigned binary, and Windows Defender holds a binary it
-  has not seen for about ten seconds on first launch. The smoke test absorbs that at deploy time. If it shows up
-  again in daily use, the options are a Defender exclusion for the install directory or signing the binaries with a
-  locally trusted certificate.
+- **Antivirus and fresh builds.** Every new build is a new unsigned binary, and Windows Defender sometimes holds a Go
+  binary it has not seen at its path for about ten seconds on first launch (the first start of the first deployed
+  build waited 10.9 s for the backend; the second start, 51 ms). The deploy now launches the installed binaries once
+  to take that hit early. Whether the hold comes back for a binary that has aged a few hours is not known yet. If it
+  shows up in daily use, the options are a Defender exclusion for the install directory or signing the binaries with
+  a locally trusted certificate.
+- **A terminal that lost its first output.** Once, a terminal block created by a script within seconds of the app
+  starting showed neither its first line of output nor its first prompt until something was typed. Two retries on a
+  settled instance were fine. Unconfirmed, but the suspect is the terminal view being rebuilt while the tab is still
+  initialising (it is rebuilt whenever any `term:*` setting object changes). Look at this in Phase 2, since the first
+  terminal of a fresh start is exactly the case that has to be right.
