@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package wcore
 
@@ -75,6 +76,10 @@ func GetLayoutIdForTab(ctx context.Context, tabId string) (string, error) {
 	tabObj, err := wstore.DBGet[*waveobj.Tab](ctx, tabId)
 	if err != nil {
 		return "", fmt.Errorf("unable to get layout id for given tab id %s: %w", tabId, err)
+	}
+	if tabObj == nil {
+		// deleting the last block of a tab deletes the tab too, before the caller queues its layout action
+		return "", fmt.Errorf("unable to get layout id for given tab id %s: tab not found", tabId)
 	}
 	return tabObj.LayoutState, nil
 }

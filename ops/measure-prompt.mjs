@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Measures how long a new terminal block takes to reach its first shell prompt, inside a running instance that was
-// started with WAVELET_CDP_PORT. Each run creates a block, times it, and deletes it again.
+// started with WAVELET_CDP_PORT. Each run creates a block, times it, and deletes it again (unless it is the only
+// block in its tab).
 //
 //   node ops/measure-prompt.mjs [--port N] [--runs N] [--target <cdp.mjs target, default: active>]
 
@@ -50,7 +51,11 @@ const probe = `(async () => {
         }
         await new Promise((r) => setTimeout(r, 10));
     }
-    await RpcApi.DeleteBlockCommand(TabRpcClient, { blockid: blockId });
+    // deleting the only block of a tab closes the tab (and with it, possibly, the window)
+    const blockCount = WOS.getObjectValue("tab:" + tabId)?.blockids?.length ?? 0;
+    if (blockCount > 1) {
+        await RpcApi.DeleteBlockCommand(TabRpcClient, { blockid: blockId });
+    }
     return result;
 })()`;
 
