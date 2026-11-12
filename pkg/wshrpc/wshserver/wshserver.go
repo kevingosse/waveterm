@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package wshserver
 
@@ -48,7 +49,6 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/wavebase"
 	"github.com/wavetermdev/waveterm/pkg/wavejwt"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
-	"github.com/wavetermdev/waveterm/pkg/wcloud"
 	"github.com/wavetermdev/waveterm/pkg/wconfig"
 	"github.com/wavetermdev/waveterm/pkg/wcore"
 	"github.com/wavetermdev/waveterm/pkg/wps"
@@ -1272,7 +1272,7 @@ func (ws *WshServer) RecordTEventCommand(ctx context.Context, data telemetrydata
 }
 
 func (ws WshServer) SendTelemetryCommand(ctx context.Context) error {
-	return wcloud.SendAllTelemetry(wstore.GetClientId())
+	return nil
 }
 
 func (ws *WshServer) WaveAIEnableTelemetryCommand(ctx context.Context) error {
@@ -1290,12 +1290,6 @@ func (ws *WshServer) WaveAIEnableTelemetryCommand(ctx context.Context) error {
 	err = telemetry.RecordTEvent(ctx, event)
 	if err != nil {
 		log.Printf("error recording waveai:enabletelemetry event: %v", err)
-	}
-
-	// Immediately send telemetry to cloud
-	err = wcloud.SendAllTelemetry(wstore.GetClientId())
-	if err != nil {
-		log.Printf("error sending telemetry after enabling: %v", err)
 	}
 
 	return nil

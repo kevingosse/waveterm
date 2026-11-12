@@ -35,7 +35,6 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/util/utilfn"
 	"github.com/wavetermdev/waveterm/pkg/wavebase"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
-	"github.com/wavetermdev/waveterm/pkg/wcloud"
 	"github.com/wavetermdev/waveterm/pkg/wconfig"
 	"github.com/wavetermdev/waveterm/pkg/wcore"
 	"github.com/wavetermdev/waveterm/pkg/web"
@@ -56,15 +55,11 @@ import (
 var WaveVersion = "0.0.0"
 var BuildTime = "0"
 
-const InitialTelemetryWait = 10 * time.Second
 const TelemetryTick = 2 * time.Minute
-const TelemetryInterval = 4 * time.Hour
 const TelemetryInitialCountsWait = 5 * time.Second
 const TelemetryCountsInterval = 1 * time.Hour
 const BackupCleanupTick = 2 * time.Minute
 const BackupCleanupInterval = 4 * time.Hour
-const InitialDiagnosticWait = 5 * time.Minute
-const DiagnosticTick = 10 * time.Minute
 
 var shutdownOnce sync.Once
 
@@ -83,7 +78,6 @@ func doShutdown(reason string) {
 		defer cancelFn()
 		go blockcontroller.StopAllBlockControllersForShutdown()
 		shutdownActivityUpdate()
-		sendTelemetryWrapper()
 		// TODO deal with flush in progress
 		clearTempFiles()
 		filestore.WFS.FlushCache(ctx)
@@ -119,74 +113,6 @@ func startConfigWatcher() {
 	}
 }
 
-func telemetryLoop() {
-	defer func() {
-		panichandler.PanicHandler("telemetryLoop", recover())
-	}()
-	var nextSend int64
-	time.Sleep(InitialTelemetryWait)
-	for {
-		if time.Now().Unix() > nextSend {
-			nextSend = time.Now().Add(TelemetryInterval).Unix()
-			sendTelemetryWrapper()
-		}
-		time.Sleep(TelemetryTick)
-	}
-}
-
-func diagnosticLoop() {
-	defer func() {
-		panichandler.PanicHandler("diagnosticLoop", recover())
-	}()
-	if os.Getenv("WAVETERM_NOPING") != "" {
-		log.Printf("WAVETERM_NOPING set, disabling diagnostic ping\n")
-		return
-	}
-	var lastSentDate string
-	time.Sleep(InitialDiagnosticWait)
-	for {
-		currentDate := time.Now().Format("2006-01-02")
-		if lastSentDate == "" || lastSentDate != currentDate {
-			if sendDiagnosticPing() {
-				lastSentDate = currentDate
-			}
-		}
-		time.Sleep(DiagnosticTick)
-	}
-}
-
-func sendDiagnosticPing() bool {
-	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelFn()
-
-	rpcClient := wshclient.GetBareRpcClient()
-	isOnline, err := wshclient.NetworkOnlineCommand(rpcClient, &wshrpc.RpcOpts{Route: "electron", Timeout: 2000})
-	if err != nil || !isOnline {
-		return false
-	}
-	clientId := wstore.GetClientId()
-	usageTelemetry := telemetry.IsTelemetryEnabled()
-	wcloud.SendDiagnosticPing(ctx, clientId, usageTelemetry)
-	return true
-}
-
-func setupTelemetryConfigHandler() {
-	watcher := wconfig.GetWatcher()
-	if watcher == nil {
-		return
-	}
-	currentConfig := watcher.GetFullConfig()
-	currentTelemetryEnabled := currentConfig.Settings.TelemetryEnabled
-
-	watcher.RegisterUpdateHandler(func(newConfig wconfig.FullConfigType) {
-		newTelemetryEnabled := newConfig.Settings.TelemetryEnabled
-		if newTelemetryEnabled != currentTelemetryEnabled {
-			currentTelemetryEnabled = newTelemetryEnabled
-			wcore.GoSendNoTelemetryUpdate(newTelemetryEnabled)
-		}
-	})
-}
-
 func backupCleanupLoop() {
 	defer func() {
 		panichandler.PanicHandler("backupCleanupLoop", recover())
@@ -213,20 +139,6 @@ func panicTelemetryHandler(panicName string) {
 	telemetry.RecordTEvent(context.Background(), telemetrydata.MakeTEvent("debug:panic", telemetrydata.TEventProps{
 		PanicType: panicName,
 	}))
-}
-
-func sendTelemetryWrapper() {
-	defer func() {
-		panichandler.PanicHandler("sendTelemetryWrapper", recover())
-	}()
-	ctx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancelFn()
-	beforeSendActivityUpdate(ctx)
-	clientId := wstore.GetClientId()
-	err := wcloud.SendAllTelemetry(clientId)
-	if err != nil {
-		log.Printf("[error] sending telemetry: %v\n", err)
-	}
 }
 
 func updateTelemetryCounts(lastCounts telemetrydata.TEventProps) telemetrydata.TEventProps {
@@ -285,21 +197,6 @@ func updateTelemetryCountsLoop() {
 			lastCounts = updateTelemetryCounts(lastCounts)
 		}
 		time.Sleep(TelemetryTick)
-	}
-}
-
-func beforeSendActivityUpdate(ctx context.Context) {
-	activity := wshrpc.ActivityUpdate{}
-	activity.NumTabs, _ = wstore.DBGetCount[*waveobj.Tab](ctx)
-	activity.NumBlocks, _ = wstore.DBGetCount[*waveobj.Block](ctx)
-	activity.Blocks, _ = wstore.DBGetBlockViewCounts(ctx)
-	activity.NumWindows, _ = wstore.DBGetCount[*waveobj.Window](ctx)
-	activity.NumSSHConn = conncontroller.GetNumSSHHasConnected()
-	activity.NumWSLConn = wslconn.GetNumWSLHasConnected()
-	activity.NumWSNamed, activity.NumWS, _ = wstore.DBGetWSCounts(ctx)
-	err := telemetry.UpdateActivity(ctx, activity)
-	if err != nil {
-		log.Printf("error updating before activity: %v\n", err)
 	}
 }
 
@@ -403,10 +300,6 @@ func grabAndRemoveEnvVars() error {
 		return fmt.Errorf("setting auth key: %v", err)
 	}
 	err = wavebase.CacheAndRemoveEnvVars()
-	if err != nil {
-		return err
-	}
-	err = wcloud.CacheAndRemoveEnvVars()
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 // wave core application coordinator
 package wcore
@@ -17,10 +18,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/wavetermdev/waveterm/pkg/panichandler"
 	"github.com/wavetermdev/waveterm/pkg/wavejwt"
 	"github.com/wavetermdev/waveterm/pkg/waveobj"
-	"github.com/wavetermdev/waveterm/pkg/wcloud"
 	"github.com/wavetermdev/waveterm/pkg/wps"
 	"github.com/wavetermdev/waveterm/pkg/wstore"
 )
@@ -143,22 +142,6 @@ func ResolveBlockIdFromPrefix(ctx context.Context, tabId string, blockIdPrefix s
 	}
 
 	return "", fmt.Errorf("widget_id not found: %q", blockIdPrefix)
-}
-
-func GoSendNoTelemetryUpdate(telemetryEnabled bool) {
-	go func() {
-		defer func() {
-			panichandler.PanicHandler("GoSendNoTelemetryUpdate", recover())
-		}()
-		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancelFn()
-		clientId := wstore.GetClientId()
-		err := wcloud.SendNoTelemetryUpdate(ctx, clientId, !telemetryEnabled)
-		if err != nil {
-			log.Printf("[error] sending no-telemetry update: %v\n", err)
-			return
-		}
-	}()
 }
 
 func InitMainServer() error {
