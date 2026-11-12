@@ -3,7 +3,6 @@
 
 // WaveObjectStore
 
-import { isPreviewWindow } from "@/app/store/windowtype";
 import { waveEventSubscribeSingle } from "@/app/store/wps";
 import { getWebServerEndpoint } from "@/util/endpoints";
 import { fetch } from "@/util/fetchutil";
@@ -55,19 +54,7 @@ function makeORef(otype: string, oid: string): string {
     return `${otype}:${oid}`;
 }
 
-const previewMockObjects: Map<string, WaveObj> = new Map();
-
-function mockObjectForPreview<T extends WaveObj>(oref: string, obj: T): void {
-    if (!isPreviewWindow()) {
-        throw new Error("mockObjectForPreview can only be called in a preview window");
-    }
-    previewMockObjects.set(oref, obj);
-}
-
 function GetObject<T>(oref: string): Promise<T> {
-    if (isPreviewWindow()) {
-        return Promise.resolve((previewMockObjects.get(oref) as T) ?? null);
-    }
     return callBackendService("object", "GetObject", [oref], true);
 }
 
@@ -322,7 +309,6 @@ export {
     isWaveObjectNullAtom,
     loadAndPinWaveObject,
     makeORef,
-    mockObjectForPreview,
     reloadWaveObject,
     setObjectValue,
     splitORef,

@@ -3,7 +3,6 @@
 
 import type { WshClient } from "@/app/store/wshclient";
 import { RpcApi } from "@/app/store/wshclientapi";
-import { isPreviewWindow } from "@/app/store/windowtype";
 import { isBlank } from "@/util/util";
 import { Subject } from "rxjs";
 
@@ -44,9 +43,6 @@ function wpsReconnectHandler() {
 }
 
 function updateWaveEventSub(eventType: string) {
-    if (isPreviewWindow()) {
-        return;
-    }
     const subjects = waveEventSubjects.get(eventType);
     if (subjects == null) {
         RpcApi.EventUnsubCommand(WpsRpcClient, eventType, { noresponse: true });

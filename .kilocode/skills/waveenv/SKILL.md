@@ -1,6 +1,6 @@
 ---
 name: waveenv
-description: Guide for creating WaveEnv narrowings in Wave Terminal. Use when writing a named subset type of WaveEnv for a component tree, documenting environmental dependencies, or enabling mock environments for preview/test server usage.
+description: Guide for creating WaveEnv narrowings in Wave Terminal. Use when writing a named subset type of WaveEnv for a component tree, documenting environmental dependencies, or enabling mock environments in tests.
 ---
 
 # WaveEnv Narrowing Skill
@@ -11,11 +11,11 @@ A WaveEnv narrowing creates a _named subset type_ of `WaveEnv` that:
 
 1. Documents exactly which parts of the environment a component tree actually uses.
 2. Forms a type contract so callers and tests know what to provide.
-3. Enables mocking in the preview/test server — you only need to implement what's listed.
+3. Enables mocking in tests — you only need to implement what's listed.
 
 ## When To Create One
 
-Create a narrowing whenever you are writing a component (or group of components) that you want to test in the preview server, or when you want to make the environmental dependencies of a component tree explicit.
+Create a narrowing whenever you are writing a component (or group of components) that you want to test in isolation, or when you want to make the environmental dependencies of a component tree explicit.
 
 ## Core Principle: Only Include What You Use
 
@@ -87,14 +87,6 @@ export type MyEnv = WaveEnvSubset<{
   getConfigBackgroundAtom: WaveEnv["getConfigBackgroundAtom"];
 }>;
 ```
-
-### Automatically Included Fields
-
-Every `WaveEnvSubset<T>` automatically includes the mock fields — you never need to declare them:
-
-- `isMock: boolean`
-- `mockSetWaveObj: <T extends WaveObj>(oref: string, obj: T) => void`
-- `mockModels?: Map<any, any>`
 
 ### Rules for Each Section
 

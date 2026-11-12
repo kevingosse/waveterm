@@ -2,42 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { globalStore } from "@/app/store/jotaiStore";
-import { makeMockWaveEnv } from "@/preview/mock/mockwaveenv";
-import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { atom } from "jotai";
-import { getWebPreviewDisplayUrl, WebViewModel, WebViewPreviewFallback } from "./webview";
+import { atom, PrimitiveAtom } from "jotai";
+import { WebViewModel } from "./webview";
 
-describe("webview preview fallback", () => {
-    it("shows the requested URL", () => {
-        const markup = renderToStaticMarkup(<WebViewPreviewFallback url="https://waveterm.dev/docs" />);
+function makeTestEnv(block: Block, settings: SettingsType) {
+    const blockAtom = atom(block) as PrimitiveAtom<Block>;
+    const settingsAtom = atom(settings) as PrimitiveAtom<SettingsType>;
+    const env = {
+        wos: { getWaveObjectAtom: () => blockAtom },
+        getSettingsKeyAtom: (key: keyof SettingsType) => atom((get) => get(settingsAtom)[key]),
+        getBlockMetaKeyAtom: (_blockId: string, key: keyof MetaType) => atom((get) => get(blockAtom)?.meta?.[key]),
+        rpc: {
+            SetMetaCommand: async (_client: unknown, data: CommandSetMetaData) => {
+                const cur = globalStore.get(blockAtom);
+                const meta: MetaType = { ...cur.meta, ...data.meta };
+                for (const [key, val] of Object.entries(data.meta)) {
+                    if (val == null) {
+                        delete meta[key];
+                    }
+                }
+                globalStore.set(blockAtom, { ...cur, meta });
+            },
+            SetConfigCommand: async (_client: unknown, data: SettingsType) => {
+                globalStore.set(settingsAtom, { ...globalStore.get(settingsAtom), ...data });
+            },
+        },
+    };
+    return { env, blockAtom, settingsAtom };
+}
 
-        expect(markup).toContain("electron webview unavailable");
-        expect(markup).toContain("https://waveterm.dev/docs");
-    });
-
-    it("falls back to about:blank when no URL is available", () => {
-        expect(getWebPreviewDisplayUrl("")).toBe("about:blank");
-        expect(getWebPreviewDisplayUrl(null)).toBe("about:blank");
-    });
-
+describe("webview model", () => {
     it("uses the supplied env for homepage atoms and config updates", async () => {
         const blockId = "webview-env-block";
-        const env = makeMockWaveEnv({
-            settings: {
-                "web:defaulturl": "https://default.example",
-            },
-            mockWaveObjs: {
-                [`block:${blockId}`]: {
-                    otype: "block",
-                    oid: blockId,
-                    version: 1,
-                    meta: {
-                        pinnedurl: "https://block.example",
-                    },
-                } as Block,
-            },
-        });
+        const { env, blockAtom, settingsAtom } = makeTestEnv(
+            { otype: "block", oid: blockId, version: 1, meta: { pinnedurl: "https://block.example" } } as Block,
+            { "web:defaulturl": "https://default.example" }
+        );
         const model = new WebViewModel({
             blockId,
             nodeModel: {
@@ -45,7 +46,7 @@ describe("webview preview fallback", () => {
                 focusNode: () => {},
             } as any,
             tabModel: {} as any,
-            waveEnv: env,
+            waveEnv: env as any,
         });
 
         expect(globalStore.get(model.homepageUrl)).toBe("https://block.example");
@@ -53,7 +54,7 @@ describe("webview preview fallback", () => {
         await model.setHomepageUrl("https://global.example", "global");
 
         expect(globalStore.get(model.homepageUrl)).toBe("https://global.example");
-        expect(globalStore.get(env.getSettingsKeyAtom("web:defaulturl"))).toBe("https://global.example");
-        expect(globalStore.get(env.wos.getWaveObjectAtom<Block>(`block:${blockId}`))?.meta?.pinnedurl).toBeUndefined();
+        expect(globalStore.get(settingsAtom)["web:defaulturl"]).toBe("https://global.example");
+        expect(globalStore.get(blockAtom)?.meta?.pinnedurl).toBeUndefined();
     });
 });

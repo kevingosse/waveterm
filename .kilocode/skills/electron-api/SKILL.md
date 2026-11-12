@@ -7,12 +7,11 @@ description: Guide for adding new Electron APIs to Wave Terminal. Use when imple
 
 Electron APIs allow the frontend to call Electron main process functionality directly via IPC.
 
-## Four Files to Edit
+## Three Files to Edit
 
 1. [`frontend/types/custom.d.ts`](frontend/types/custom.d.ts) - TypeScript [`ElectronApi`](frontend/types/custom.d.ts:82) type
 2. [`emain/preload.ts`](emain/preload.ts) - Expose method via `contextBridge`
 3. [`emain/emain-ipc.ts`](emain/emain-ipc.ts) - Implement IPC handler
-4. [`frontend/preview/preview-electron-api.ts`](frontend/preview/preview-electron-api.ts) - Add a no-op stub to keep the `previewElectronApi` object in sync with the `ElectronApi` type
 
 ## Three Communication Patterns
 
@@ -55,15 +54,7 @@ electron.ipcMain.handle("capture-screenshot", async (event, rect) => {
 });
 ```
 
-### 4. Add Preview Stub
-
-In [`frontend/preview/preview-electron-api.ts`](frontend/preview/preview-electron-api.ts):
-
-```typescript
-captureScreenshot: (_rect: Electron.Rectangle) => Promise.resolve(""),
-```
-
-### 5. Call from Frontend
+### 4. Call from Frontend
 
 ```typescript
 import { getApi } from "@/store/global";
@@ -176,7 +167,6 @@ webContents.send("zoom-factor-change", newZoomFactor);
 - [ ] Include IPC channel name in comment
 - [ ] Expose in [`preload.ts`](emain/preload.ts)
 - [ ] Implement in [`emain-ipc.ts`](emain/emain-ipc.ts)
-- [ ] Add no-op stub to [`preview-electron-api.ts`](frontend/preview/preview-electron-api.ts)
 - [ ] IPC channel names match exactly
 - [ ] **For sync**: Set `event.returnValue` (or browser hangs!)
 - [ ] Test end-to-end

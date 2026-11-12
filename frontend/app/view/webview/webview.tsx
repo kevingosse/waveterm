@@ -13,7 +13,6 @@ import {
     SuggestionControlNoData,
     SuggestionControlNoResults,
 } from "@/app/suggestion/suggestion";
-import { MockBoundary } from "@/app/waveenv/mockboundary";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
 import { openLink } from "@/store/global";
 import { adaptFromReactOrNativeKeyEvent, checkKeyPressed } from "@/util/keyutil";
@@ -821,26 +820,6 @@ interface WebViewProps {
     initialSrc?: string;
 }
 
-function getWebPreviewDisplayUrl(url?: string | null): string {
-    return url?.trim() || "about:blank";
-}
-
-function WebViewPreviewFallback({ url }: { url?: string | null }) {
-    const displayUrl = getWebPreviewDisplayUrl(url);
-
-    return (
-        <div className="flex h-full w-full items-center justify-center bg-panel">
-            <div className="mx-6 flex max-w-[720px] flex-col gap-3 rounded-lg border border-dashed border-border bg-background px-6 py-5 shadow-sm">
-                <div className="text-xs font-mono text-muted">preview mock · electron webview unavailable</div>
-                <div className="text-sm text-foreground">web widget placeholder</div>
-                <div className="rounded-md border border-border bg-panel px-3 py-2 font-mono text-xs text-foreground break-all">
-                    {displayUrl}
-                </div>
-            </div>
-        </div>
-    );
-}
-
 const WebView = memo(({ model, onFailLoad, blockRef, initialSrc }: WebViewProps) => {
     const env = useWaveEnv<WebViewEnv>();
     const blockData = useAtomValue(model.blockAtom);
@@ -1106,21 +1085,19 @@ const WebView = memo(({ model, onFailLoad, blockRef, initialSrc }: WebViewProps)
 
     return (
         <Fragment>
-            <MockBoundary fallback={<WebViewPreviewFallback url={metaUrl} />}>
-                <webview
-                    id="webview"
-                    className="webview"
-                    ref={model.webviewRef}
-                    src={metaUrlInitial}
-                    data-blockid={model.blockId}
-                    data-webcontentsid={webContentsId} // needed for emain
-                    preload={getWebviewPreloadUrl(env)}
-                    // @ts-expect-error This is a discrepancy between the React typing and the Chromium impl for webviewTag. Chrome webviewTag expects a string, while React expects a boolean.
-                    allowpopups="true"
-                    partition={webPartition}
-                    useragent={userAgent}
-                />
-            </MockBoundary>
+            <webview
+                id="webview"
+                className="webview"
+                ref={model.webviewRef}
+                src={metaUrlInitial}
+                data-blockid={model.blockId}
+                data-webcontentsid={webContentsId} // needed for emain
+                preload={getWebviewPreloadUrl(env)}
+                // @ts-expect-error This is a discrepancy between the React typing and the Chromium impl for webviewTag. Chrome webviewTag expects a string, while React expects a boolean.
+                allowpopups="true"
+                partition={webPartition}
+                useragent={userAgent}
+            />
             {errorText && (
                 <div className="webview-error">
                     <div>{errorText}</div>
@@ -1132,4 +1109,4 @@ const WebView = memo(({ model, onFailLoad, blockRef, initialSrc }: WebViewProps)
     );
 });
 
-export { WebView, WebViewPreviewFallback, getWebPreviewDisplayUrl };
+export { WebView };

@@ -33,7 +33,6 @@ import { atoms, blockComponentModelMap, ConnStatusMapAtom, initGlobalAtoms, oref
 import { globalStore } from "./jotaiStore";
 import { modalsModel } from "./modalmodel";
 import { ClientService, ObjectService } from "./services";
-import { isPreviewWindow } from "./windowtype";
 import * as WOS from "./wos";
 import { getFileSubject, waveEventSubscribeSingle } from "./wps";
 
@@ -157,7 +156,6 @@ function useOrefMetaKeyAtom<T extends keyof MetaType>(oref: string, key: T): Met
 }
 
 function getConnConfigKeyAtom<T extends keyof ConnKeywords>(connName: string, key: T): Atom<ConnKeywords[T]> {
-    if (isPreviewWindow()) return NullAtom as Atom<ConnKeywords[T]>;
     const connCache = getSingleConnAtomCache(connName);
     const keyAtomName = "#conn-" + key;
     let keyAtom = connCache.get(keyAtomName);
@@ -175,7 +173,6 @@ function getConnConfigKeyAtom<T extends keyof ConnKeywords>(connName: string, ke
 const settingsAtomCache = new Map<string, Atom<any>>();
 
 function getOverrideConfigAtom<T extends keyof SettingsType>(blockId: string, key: T): Atom<SettingsType[T]> {
-    if (isPreviewWindow()) return NullAtom as Atom<SettingsType[T]>;
     const blockCache = getSingleBlockAtomCache(blockId);
     const overrideAtomName = "#settingsoverride-" + key;
     let overrideAtom = blockCache.get(overrideAtomName);
@@ -214,7 +211,6 @@ function useOverrideConfigAtom<T extends keyof SettingsType>(blockId: string | n
 }
 
 function getSettingsKeyAtom<T extends keyof SettingsType>(key: T): Atom<SettingsType[T]> {
-    if (isPreviewWindow()) return NullAtom as Atom<SettingsType[T]>;
     let settingsKeyAtom = settingsAtomCache.get(key) as Atom<SettingsType[T]>;
     if (settingsKeyAtom == null) {
         settingsKeyAtom = atom((get) => {
@@ -236,7 +232,7 @@ function useSettingsKeyAtom<T extends keyof SettingsType>(key: T): SettingsType[
 const configBackgroundAtomCache = new Map<string, Atom<BackgroundConfigType>>();
 
 function getConfigBackgroundAtom(bgKey: string | null): Atom<BackgroundConfigType> {
-    if (isPreviewWindow() || bgKey == null) return NullAtom as Atom<BackgroundConfigType>;
+    if (bgKey == null) return NullAtom as Atom<BackgroundConfigType>;
     let bgAtom = configBackgroundAtomCache.get(bgKey);
     if (bgAtom == null) {
         bgAtom = atom((get) => {
@@ -249,7 +245,6 @@ function getConfigBackgroundAtom(bgKey: string | null): Atom<BackgroundConfigTyp
 }
 
 function getSettingsPrefixAtom(prefix: string): Atom<SettingsType> {
-    if (isPreviewWindow()) return NullAtom as Atom<SettingsType>;
     let settingsPrefixAtom = settingsAtomCache.get(prefix + ":");
     if (settingsPrefixAtom == null) {
         // create a stable, closured reference to use as the deepCompareReturnPrev key
@@ -666,7 +661,6 @@ function setActiveTab(tabId: string) {
 }
 
 function recordTEvent(event: string, props?: TEventProps) {
-    if (isPreviewWindow()) return;
     if (props == null) {
         props = {};
     }
