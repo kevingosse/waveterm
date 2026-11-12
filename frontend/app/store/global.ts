@@ -37,10 +37,7 @@ import { ClientService, ObjectService } from "./services";
 import * as WOS from "./wos";
 import { getFileSubject, waveEventSubscribeSingle } from "./wps";
 
-let globalPrimaryTabStartup: boolean = false;
-
 function initGlobal(initOpts: GlobalInitOptions) {
-    globalPrimaryTabStartup = initOpts.primaryTabStartup ?? false;
     setPlatform(initOpts.platform);
     initGlobalAtoms(initOpts);
     try {
@@ -681,7 +678,6 @@ export {
     getSettingsKeyAtom,
     getSettingsPrefixAtom,
     getUserName,
-    globalPrimaryTabStartup,
     globalStore,
     initGlobal,
     initGlobalWaveEventSubs,

@@ -5,7 +5,6 @@
 import { Tooltip } from "@/app/element/tooltip";
 import { useWaveEnv, WaveEnv, WaveEnvSubset } from "@/app/waveenv/waveenv";
 import { shouldIncludeWidgetForWorkspace } from "@/app/workspace/widgetfilter";
-import { modalsModel } from "@/store/modalmodel";
 import { fireAndForget, isBlank, makeIconClass } from "@/util/util";
 import {
     autoUpdate,
@@ -160,14 +159,6 @@ const SettingsFloatingWindow = memo(
                         },
                     };
                     env.createBlock(blockDef, false, true);
-                    onClose();
-                },
-            },
-            {
-                icon: "book-open",
-                label: "Release Notes",
-                onClick: () => {
-                    modalsModel.pushModal("UpgradeOnboardingPatch", { isReleaseNotes: true });
                     onClose();
                 },
             },

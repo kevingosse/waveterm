@@ -54,7 +54,6 @@ export class ElectronWshClientType extends WshClient {
             }
             ww = await createBrowserWindow(window, fullConfig, {
                 unamePlatform,
-                isPrimaryStartupWindow: false,
             });
         }
         ww.focus();

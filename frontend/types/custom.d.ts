@@ -54,7 +54,6 @@ declare global {
         windowId: string;
         clientId: string;
         environment: "electron" | "renderer";
-        primaryTabStartup?: boolean;
     };
 
     type WaveInitOpts = {
@@ -62,7 +61,6 @@ declare global {
         clientId: string;
         windowId: string;
         activate: boolean;
-        primaryTabStartup?: boolean;
     };
 
     type ElectronApi = {

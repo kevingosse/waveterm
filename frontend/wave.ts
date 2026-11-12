@@ -146,7 +146,6 @@ async function initWave(initOpts: WaveInitOpts) {
         windowId: initOpts.windowId,
         platform,
         environment: "renderer",
-        primaryTabStartup: initOpts.primaryTabStartup,
     };
     console.log("Wave Init", globalInitOpts);
     globalStore.set(activeTabIdAtom, initOpts.tabId);

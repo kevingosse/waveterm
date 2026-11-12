@@ -28,7 +28,6 @@ const DevInitDiagnosticMs = 5000;
 
 export type WindowOpts = {
     unamePlatform: NodeJS.Platform;
-    isPrimaryStartupWindow?: boolean;
     foregroundWindow?: boolean;
 };
 
@@ -111,7 +110,6 @@ export function getQuakeWindow(): WaveBrowserWindow | null {
 }
 
 let cachedClientId: string = null;
-let hasCompletedFirstRelaunch = false;
 
 async function getClientId() {
     if (cachedClientId != null) {
@@ -127,7 +125,6 @@ type WindowActionQueueEntry =
           op: "switchtab";
           tabId: string;
           setInBackend: boolean;
-          primaryStartupTab?: boolean;
       }
     | {
           op: "createtab";
@@ -410,19 +407,12 @@ export class WaveBrowserWindow extends BaseWindow {
         await this._queueActionInternal({ op: "switchworkspace", workspaceId });
     }
 
-    async setActiveTab(tabId: string, setInBackend: boolean, primaryStartupTab = false) {
-        console.log(
-            "setActiveTab",
-            tabId,
-            this.waveWindowId,
-            this.workspaceId,
-            setInBackend,
-            primaryStartupTab ? "(primary startup)" : ""
-        );
-        await this._queueActionInternal({ op: "switchtab", tabId, setInBackend, primaryStartupTab });
+    async setActiveTab(tabId: string, setInBackend: boolean) {
+        console.log("setActiveTab", tabId, this.waveWindowId, this.workspaceId, setInBackend);
+        await this._queueActionInternal({ op: "switchtab", tabId, setInBackend });
     }
 
-    private async initializeTab(tabView: WaveTabView, primaryStartupTab: boolean) {
+    private async initializeTab(tabView: WaveTabView) {
         const clientId = await getClientId();
         await this.awaitWithDevDiagnostics(tabView.initPromise, "initPromise", tabView);
         const winBounds = this.getContentBounds();
@@ -434,18 +424,10 @@ export class WaveBrowserWindow extends BaseWindow {
             windowId: this.waveWindowId,
             activate: true,
         };
-        if (primaryStartupTab) {
-            initOpts.primaryTabStartup = true;
-        }
         tabView.savedInitOpts = { ...initOpts };
         tabView.savedInitOpts.activate = false;
-        delete tabView.savedInitOpts.primaryTabStartup;
         const startTime = Date.now();
-        console.log(
-            "before wave ready, init tab, sending wave-init",
-            tabView.waveTabId,
-            primaryStartupTab ? "(primary startup)" : ""
-        );
+        console.log("before wave ready, init tab, sending wave-init", tabView.waveTabId);
         tabView.webContents.send("wave-init", initOpts);
         await this.awaitWithDevDiagnostics(tabView.waveReadyPromise, "waveReadyPromise", tabView);
         console.log("wave-ready init time", Date.now() - startTime + "ms");
@@ -496,7 +478,7 @@ export class WaveBrowserWindow extends BaseWindow {
         }
     }
 
-    private async setTabViewIntoWindow(tabView: WaveTabView, tabInitialized: boolean, primaryStartupTab = false) {
+    private async setTabViewIntoWindow(tabView: WaveTabView, tabInitialized: boolean) {
         if (this.activeTabView == tabView) {
             return;
         }
@@ -508,8 +490,8 @@ export class WaveBrowserWindow extends BaseWindow {
         this.activeTabView = tabView;
         this.allLoadedTabViews.set(tabView.waveTabId, tabView);
         if (!tabInitialized) {
-            console.log("initializing a new tab", primaryStartupTab ? "(primary startup)" : "");
-            await this.initializeTab(tabView, primaryStartupTab);
+            console.log("initializing a new tab");
+            await this.initializeTab(tabView);
             this.finalizePositioning();
         } else {
             console.log("reusing an existing tab, calling wave-init", tabView.waveTabId);
@@ -638,8 +620,7 @@ export class WaveBrowserWindow extends BaseWindow {
                     return;
                 }
                 const [tabView, tabInitialized] = await getOrCreateWebViewForTab(this.waveWindowId, tabId);
-                const primaryStartupTabFlag = entry.op === "switchtab" ? (entry.primaryStartupTab ?? false) : false;
-                await this.setTabViewIntoWindow(tabView, tabInitialized, primaryStartupTabFlag);
+                await this.setTabViewIntoWindow(tabView, tabInitialized);
             } catch (e) {
                 console.log("error caught in processActionQueue", e);
             } finally {
@@ -729,7 +710,6 @@ export async function createWindowForWorkspace(workspaceId: string) {
     }
     const newBwin = await createBrowserWindow(newWin, await RpcApi.GetFullConfigCommand(ElectronWshClient), {
         unamePlatform,
-        isPrimaryStartupWindow: false,
     });
     newBwin.show();
 }
@@ -756,7 +736,7 @@ export async function createBrowserWindow(
     const bwin = new WaveBrowserWindow(waveWindow, fullConfig, opts);
 
     if (workspace.activetabid) {
-        await bwin.setActiveTab(workspace.activetabid, false, opts.isPrimaryStartupWindow ?? false);
+        await bwin.setActiveTab(workspace.activetabid, false);
     }
     return bwin;
 }
@@ -874,7 +854,6 @@ export async function createNewWaveWindow() {
         if (existingWindowData != null) {
             const win = await createBrowserWindow(existingWindowData, fullConfig, {
                 unamePlatform,
-                isPrimaryStartupWindow: false,
             });
             if (quakeWindow == null) {
                 quakeWindow = win;
@@ -890,7 +869,6 @@ export async function createNewWaveWindow() {
     console.log("creating new window");
     const newBrowserWindow = await createBrowserWindow(null, fullConfig, {
         unamePlatform,
-        isPrimaryStartupWindow: false,
     });
     if (quakeWindow == null) {
         quakeWindow = newBrowserWindow;
@@ -915,7 +893,6 @@ export async function relaunchBrowserWindows() {
     const fullConfig = await RpcApi.GetFullConfigCommand(ElectronWshClient);
     const windowIds = clientData.windowids ?? [];
     const wins: WaveBrowserWindow[] = [];
-    const isFirstRelaunch = !hasCompletedFirstRelaunch;
     const primaryWindowId = windowIds.length > 0 ? windowIds[0] : null;
     for (const windowId of windowIds.slice().reverse()) {
         const windowData: WaveWindow = await WindowService.GetWindow(windowId);
@@ -924,16 +901,9 @@ export async function relaunchBrowserWindows() {
             await WindowService.CloseWindow(windowId, true);
             continue;
         }
-        const isPrimaryStartupWindow = isFirstRelaunch && windowId === primaryWindowId;
-        console.log(
-            "relaunch -- creating window",
-            windowId,
-            windowData,
-            isPrimaryStartupWindow ? "(primary startup)" : ""
-        );
+        console.log("relaunch -- creating window", windowId, windowData);
         const win = await createBrowserWindow(windowData, fullConfig, {
             unamePlatform,
-            isPrimaryStartupWindow,
             foregroundWindow: windowId === primaryWindowId,
         });
         wins.push(win);
@@ -942,7 +912,6 @@ export async function relaunchBrowserWindows() {
             console.log("designated quake window", win.waveWindowId);
         }
     }
-    hasCompletedFirstRelaunch = true;
     for (const win of wins) {
         console.log("show window", win.waveWindowId);
         win.show();

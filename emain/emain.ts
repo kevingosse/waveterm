@@ -97,7 +97,6 @@ function handleWSEvent(evtMsg: WSEventType) {
             const fullConfig = await RpcApi.GetFullConfigCommand(ElectronWshClient);
             const newWin = await createBrowserWindow(windowData, fullConfig, {
                 unamePlatform,
-                isPrimaryStartupWindow: false,
             });
             newWin.show();
         } else if (evtMsg.eventtype == "electron:closewindow") {
