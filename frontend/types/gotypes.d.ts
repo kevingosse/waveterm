@@ -147,11 +147,6 @@ declare global {
         termsize?: TermSize;
     };
 
-    // wshrpc.CommandCaptureBlockScreenshotData
-    type CommandCaptureBlockScreenshotData = {
-        blockid: string;
-    };
-
     // wshrpc.CommandConnServerInitData
     type CommandConnServerInitData = {
         clientid: string;
@@ -621,12 +616,6 @@ declare global {
         keepalivesenttime?: number;
     };
 
-    // wshrpc.CpuDataRequest
-    type CpuDataRequest = {
-        id: string;
-        count: number;
-    };
-
     // vdom.DomRect
     type DomRect = {
         top: number;
@@ -722,19 +711,6 @@ declare global {
         ijsonbudget?: number;
         truncate?: boolean;
         append?: boolean;
-    };
-
-    // wshrpc.FocusedBlockData
-    type FocusedBlockData = {
-        blockid: string;
-        viewtype: string;
-        controller: string;
-        connname: string;
-        blockmeta: MetaType;
-        termjobstatus?: BlockJobStatusData;
-        connstatus?: ConnStatus;
-        termshellintegrationstatus?: string;
-        termlastcommand?: string;
     };
 
     // wconfig.FullConfigType

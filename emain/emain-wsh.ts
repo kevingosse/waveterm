@@ -5,7 +5,7 @@
 import { WindowService } from "@/app/store/services";
 import { RpcResponseHelper, WshClient } from "@/app/store/wshclient";
 import { RpcApi } from "@/app/store/wshclientapi";
-import { Notification, net, safeStorage, shell } from "electron";
+import { Notification, safeStorage, shell } from "electron";
 import { unamePlatform } from "./emain-platform";
 import { getWebContentsByBlockId, webGetSelector } from "./emain-web";
 import { createBrowserWindow, getWaveWindowById, getWaveWindowByWorkspaceId } from "./emain-window";
@@ -95,10 +95,6 @@ export class ElectronWshClientType extends WshClient {
             plaintext,
             storagebackend,
         };
-    }
-
-    async handle_networkonline(rh: RpcResponseHelper): Promise<boolean> {
-        return net.isOnline();
     }
 
     async handle_electronsystembell(rh: RpcResponseHelper): Promise<void> {

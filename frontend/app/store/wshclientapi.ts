@@ -78,12 +78,6 @@ export class RpcApiType {
         return client.wshRpcCall("blockslist", data, opts);
     }
 
-    // command "captureblockscreenshot" [call]
-    CaptureBlockScreenshotCommand(client: WshClient, data: CommandCaptureBlockScreenshotData, opts?: RpcOpts): Promise<string> {
-        if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "captureblockscreenshot", data, opts);
-        return client.wshRpcCall("captureblockscreenshot", data, opts);
-    }
-
     // command "connconnect" [call]
     ConnConnectCommand(client: WshClient, data: ConnRequest, opts?: RpcOpts): Promise<void> {
         if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "connconnect", data, opts);
@@ -372,12 +366,6 @@ export class RpcApiType {
         return client.wshRpcCall("getallvars", data, opts);
     }
 
-    // command "getfocusedblockdata" [call]
-    GetFocusedBlockDataCommand(client: WshClient, opts?: RpcOpts): Promise<FocusedBlockData> {
-        if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "getfocusedblockdata", null, opts);
-        return client.wshRpcCall("getfocusedblockdata", null, opts);
-    }
-
     // command "getfullconfig" [call]
     GetFullConfigCommand(client: WshClient, opts?: RpcOpts): Promise<FullConfigType> {
         if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "getfullconfig", null, opts);
@@ -540,12 +528,6 @@ export class RpcApiType {
         return client.wshRpcCall("message", data, opts);
     }
 
-    // command "networkonline" [call]
-    NetworkOnlineCommand(client: WshClient, opts?: RpcOpts): Promise<boolean> {
-        if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "networkonline", null, opts);
-        return client.wshRpcCall("networkonline", null, opts);
-    }
-
     // command "notify" [call]
     NotifyCommand(client: WshClient, data: WaveNotificationOptions, opts?: RpcOpts): Promise<void> {
         if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "notify", data, opts);
@@ -666,12 +648,6 @@ export class RpcApiType {
         return client.wshRpcCall("remotestartjob", data, opts);
     }
 
-    // command "remotestreamcpudata" [responsestream]
-	RemoteStreamCpuDataCommand(client: WshClient, opts?: RpcOpts): AsyncGenerator<TimeSeriesData, void, boolean> {
-        if (this.mockClient) return this.mockClient.mockWshRpcStream(client, "remotestreamcpudata", null, opts);
-        return client.wshRpcStream("remotestreamcpudata", null, opts);
-    }
-
     // command "remoteterminatejobmanager" [call]
     RemoteTerminateJobManagerCommand(client: WshClient, data: CommandRemoteTerminateJobManagerData, opts?: RpcOpts): Promise<void> {
         if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "remoteterminatejobmanager", data, opts);
@@ -756,12 +732,6 @@ export class RpcApiType {
         return client.wshRpcCall("startjob", data, opts);
     }
 
-    // command "streamcpudata" [responsestream]
-	StreamCpuDataCommand(client: WshClient, data: CpuDataRequest, opts?: RpcOpts): AsyncGenerator<TimeSeriesData, void, boolean> {
-        if (this.mockClient) return this.mockClient.mockWshRpcStream(client, "streamcpudata", data, opts);
-        return client.wshRpcStream("streamcpudata", data, opts);
-    }
-
     // command "streamdata" [call]
     StreamDataCommand(client: WshClient, data: CommandStreamData, opts?: RpcOpts): Promise<void> {
         if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "streamdata", data, opts);
@@ -774,28 +744,10 @@ export class RpcApiType {
         return client.wshRpcCall("streamdataack", data, opts);
     }
 
-    // command "streamtest" [responsestream]
-	StreamTestCommand(client: WshClient, opts?: RpcOpts): AsyncGenerator<number, void, boolean> {
-        if (this.mockClient) return this.mockClient.mockWshRpcStream(client, "streamtest", null, opts);
-        return client.wshRpcStream("streamtest", null, opts);
-    }
-
     // command "termgetscrollbacklines" [call]
     TermGetScrollbackLinesCommand(client: WshClient, data: CommandTermGetScrollbackLinesData, opts?: RpcOpts): Promise<CommandTermGetScrollbackLinesRtnData> {
         if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "termgetscrollbacklines", data, opts);
         return client.wshRpcCall("termgetscrollbacklines", data, opts);
-    }
-
-    // command "test" [call]
-    TestCommand(client: WshClient, data: string, opts?: RpcOpts): Promise<void> {
-        if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "test", data, opts);
-        return client.wshRpcCall("test", data, opts);
-    }
-
-    // command "testmultiarg" [call]
-    TestMultiArgCommand(client: WshClient, arg1: string, arg2: number, arg3: boolean, opts?: RpcOpts): Promise<string> {
-        if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "testmultiarg", { args: [arg1, arg2, arg3] }, opts);
-        return client.wshRpcCall("testmultiarg", { args: [arg1, arg2, arg3] }, opts);
     }
 
     // command "updatetabname" [call]

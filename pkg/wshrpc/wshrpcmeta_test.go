@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package wshrpc
 
@@ -36,15 +37,15 @@ func TestGenerateWshCommandDecl_MultiArgs(t *testing.T) {
 	}
 }
 
-func TestGenerateWshCommandDeclMap_TestMultiArgCommand(t *testing.T) {
-	decl := GenerateWshCommandDeclMap()["testmultiarg"]
+func TestGenerateWshCommandDeclMap_UpdateTabNameCommand(t *testing.T) {
+	decl := GenerateWshCommandDeclMap()["updatetabname"]
 	if decl == nil {
-		t.Fatalf("expected testmultiarg command declaration")
+		t.Fatalf("expected updatetabname command declaration")
 	}
-	if decl.MethodName != "TestMultiArgCommand" {
-		t.Fatalf("expected TestMultiArgCommand method name, got %q", decl.MethodName)
+	if decl.MethodName != "UpdateTabNameCommand" {
+		t.Fatalf("expected UpdateTabNameCommand method name, got %q", decl.MethodName)
 	}
-	if len(decl.GetCommandDataTypes()) != 3 {
-		t.Fatalf("expected 3 command args, got %d", len(decl.GetCommandDataTypes()))
+	if len(decl.GetCommandDataTypes()) != 2 {
+		t.Fatalf("expected 2 command args, got %d", len(decl.GetCommandDataTypes()))
 	}
 }

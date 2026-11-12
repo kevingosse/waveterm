@@ -68,10 +68,6 @@ type WshRpcInterface interface {
 
 	GetTempDirCommand(ctx context.Context, data CommandGetTempDirData) (string, error)
 	WriteTempFileCommand(ctx context.Context, data CommandWriteTempFileData) (string, error)
-	StreamTestCommand(ctx context.Context) chan RespOrErrorUnion[int]
-	StreamCpuDataCommand(ctx context.Context, request CpuDataRequest) chan RespOrErrorUnion[TimeSeriesData]
-	TestCommand(ctx context.Context, data string) error
-	TestMultiArgCommand(ctx context.Context, arg1 string, arg2 int, arg3 bool) (string, error)
 	SetConfigCommand(ctx context.Context, data MetaSettingsType) error
 	SetConnectionsConfigCommand(ctx context.Context, data ConnConfigRequest) error
 	GetFullConfigCommand(ctx context.Context) (wconfig.FullConfigType, error)
@@ -112,7 +108,6 @@ type WshRpcInterface interface {
 
 	// remotes
 	WshRpcRemoteFileInterface
-	RemoteStreamCpuDataCommand(ctx context.Context) chan RespOrErrorUnion[TimeSeriesData]
 	RemoteGetInfoCommand(ctx context.Context) (RemoteInfo, error)
 	RemoteInstallRcFilesCommand(ctx context.Context) error
 	RemoteStartJobCommand(ctx context.Context, data CommandRemoteStartJobData) (*CommandStartJobRtnData, error)
@@ -129,7 +124,6 @@ type WshRpcInterface interface {
 	FocusWindowCommand(ctx context.Context, windowId string) error
 	ElectronEncryptCommand(ctx context.Context, data CommandElectronEncryptData) (*CommandElectronEncryptRtnData, error)
 	ElectronDecryptCommand(ctx context.Context, data CommandElectronDecryptData) (*CommandElectronDecryptRtnData, error)
-	NetworkOnlineCommand(ctx context.Context) (bool, error)
 	ElectronSystemBellCommand(ctx context.Context) error
 
 	// secrets
@@ -151,12 +145,8 @@ type WshRpcInterface interface {
 	VDomCreateContextCommand(ctx context.Context, data vdom.VDomCreateContext) (*waveobj.ORef, error)
 	VDomAsyncInitiationCommand(ctx context.Context, data vdom.VDomAsyncInitiationRequest) error
 
-	// screenshot
-	CaptureBlockScreenshotCommand(ctx context.Context, data CommandCaptureBlockScreenshotData) (string, error)
-
 	// block focus
 	SetBlockFocusCommand(ctx context.Context, blockId string) error
-	GetFocusedBlockDataCommand(ctx context.Context) (*FocusedBlockData, error)
 
 	// rtinfo
 	GetRTInfoCommand(ctx context.Context, data CommandGetRTInfoData) (*waveobj.ObjRTInfo, error)
@@ -328,17 +318,6 @@ type CommandEventReadHistoryData struct {
 	MaxItems int    `json:"maxitems"`
 }
 
-
-type CpuDataRequest struct {
-	Id    string `json:"id"`
-	Count int    `json:"count"`
-}
-
-type CpuDataType struct {
-	Time  int64   `json:"time"`
-	Value float64 `json:"value"`
-}
-
 type CommandGetTempDirData struct {
 	FileName string `json:"filename,omitempty"`
 }
@@ -475,10 +454,6 @@ type BlocksListEntry struct {
 	TabId       string              `json:"tabid"`
 	BlockId     string              `json:"blockid"`
 	Meta        waveobj.MetaMapType `json:"meta"`
-}
-
-type CommandCaptureBlockScreenshotData struct {
-	BlockId string `json:"blockid"`
 }
 
 type CommandVarData struct {
@@ -764,18 +739,6 @@ type BlockJobStatusData struct {
 	CmdExitTs     int64  `json:"cmdexitts,omitempty"`
 	CmdExitCode   *int   `json:"cmdexitcode,omitempty"`
 	CmdExitSignal string `json:"cmdexitsignal,omitempty"`
-}
-
-type FocusedBlockData struct {
-	BlockId                    string              `json:"blockid"`
-	ViewType                   string              `json:"viewtype"`
-	Controller                 string              `json:"controller"`
-	ConnName                   string              `json:"connname"`
-	BlockMeta                  waveobj.MetaMapType `json:"blockmeta"`
-	TermJobStatus              *BlockJobStatusData `json:"termjobstatus,omitempty"`
-	ConnStatus                 *ConnStatus         `json:"connstatus,omitempty"`
-	TermShellIntegrationStatus string              `json:"termshellintegrationstatus,omitempty"`
-	TermLastCommand            string              `json:"termlastcommand,omitempty"`
 }
 
 // ProcessInfo holds per-process information for the process viewer.
