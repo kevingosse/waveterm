@@ -11,7 +11,7 @@
 // counted. Close other heavy work first: builds running at the same time easily double the numbers.
 
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -64,30 +64,49 @@ function logTime(line) {
     return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6], +m[7]).getTime() : null;
 }
 
-// Resolves in the renderer once the restored terminal shows the prompt of this session's shell.
-// The terminal has to be past loading its saved state first: until then it can briefly show the screen of the
-// previous session, prompt included. Once loaded, what it shows is this session's output only, so a prompt on the
-// cursor line is the live one.
-const waitForPrompt = `(async () => {
-    const deadline = performance.now() + 30000;
-    while (performance.now() < deadline) {
-        const tw = window.term;
-        if (tw != null && tw.loaded) {
-            const buf = tw.terminal.buffer.active;
-            const cursorLine = buf.getLine(buf.baseY + buf.cursorY)?.translateToString(true) ?? "";
-            if (/^PS .*> ?$|[$#%>] ?$/.test(cursorLine)) {
-                const nav = performance.getEntriesByType("navigation")[0];
-                return JSON.stringify({
-                    promptAt: Math.round(performance.timeOrigin + performance.now()),
-                    scriptsMs: Math.round(nav.domContentLoadedEventEnd - nav.domInteractive),
-                });
-            }
-        }
-        await new Promise((r) => setTimeout(r, 10));
-    }
-    return JSON.stringify({ promptAt: null, scriptsMs: null });
-})()`;
+// Each launch gets its own working directory for the terminal, so that its prompt is unlike any other.
+// Without that, a prompt on screen proves nothing: while a restored terminal loads, it shows the screen of the
+// previous session, prompt included, until the new shell's output replaces it.
+function cwdForRun(n) {
+    const dir = path.join(profileDirs[0], "cwd", `run-${n}`);
+    mkdirSync(dir, { recursive: true });
+    return dir;
+}
 
+// Resolves in the renderer once the restored terminal shows the prompt of this launch's shell.
+function waitForPrompt(n) {
+    return `(async () => {
+        const marker = new RegExp("run-${n}> ?$");
+        const deadline = performance.now() + 30000;
+        while (performance.now() < deadline) {
+            const tw = window.term;
+            if (tw != null && tw.loaded) {
+                const buf = tw.terminal.buffer.active;
+                const cursorLine = buf.getLine(buf.baseY + buf.cursorY)?.translateToString(true) ?? "";
+                if (marker.test(cursorLine)) {
+                    const nav = performance.getEntriesByType("navigation")[0];
+                    return JSON.stringify({
+                        promptAt: Math.round(performance.timeOrigin + performance.now()),
+                        scriptsMs: Math.round(nav.domContentLoadedEventEnd - nav.domInteractive),
+                    });
+                }
+            }
+            await new Promise((r) => setTimeout(r, 10));
+        }
+        return JSON.stringify({ promptAt: null, scriptsMs: null });
+    })()`;
+}
+
+// Tells the terminal which directory its shell starts in next time.
+function setCwdForNextLaunch(n) {
+    return `(async () => {
+        const tabId = globalStore.get(globalAtoms.staticTabId);
+        const tab = WOS.getObjectValue("tab:" + tabId);
+        const blockId = (tab?.blockids ?? []).find((id) => WOS.getObjectValue("block:" + id)?.meta?.view === "term");
+        await RpcApi.SetMetaCommand(TabRpcClient, { oref: "block:" + blockId, meta: { "cmd:cwd": ${JSON.stringify(cwdForRun(n))} } });
+        return "next start in run-${n}";
+    })()`;
+}
 const ensureTerminal = `(async () => {
     const tabId = globalStore.get(globalAtoms.staticTabId);
     const tab = WOS.getObjectValue("tab:" + tabId);
@@ -98,7 +117,9 @@ const ensureTerminal = `(async () => {
     return hasTerm ? "terminal present" : "terminal created";
 })()`;
 
-async function launchOnce(measure) {
+// run 0 is the warm-up launch
+async function launchOnce(run) {
+    const measure = run > 0;
     const logOffset = existsSync(logFile) ? readFileSync(logFile, "utf8").length : 0;
     const launchedAt = Date.now();
     const child = spawn(exe, [], {
@@ -133,7 +154,7 @@ async function launchOnce(measure) {
         }
         result.windowMs = shown - launchedAt;
         if (measure) {
-            const prompt = JSON.parse(cdpEval(waitForPrompt));
+            const prompt = JSON.parse(cdpEval(waitForPrompt(run)));
             result.promptMs = prompt.promptAt == null ? null : prompt.promptAt - launchedAt;
             result.scriptsMs = prompt.scriptsMs;
         } else {
@@ -141,6 +162,8 @@ async function launchOnce(measure) {
             console.log(`  warm-up: ${cdpEval(ensureTerminal)}`);
             await sleep(2500);
         }
+        cdpEval(setCwdForNextLaunch(run + 1));
+        await sleep(300);
     } finally {
         try {
             execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
@@ -164,10 +187,10 @@ if (!existsSync(exe)) {
 console.log(`measuring ${exe}`);
 removeProfile();
 try {
-    await launchOnce(false);
+    await launchOnce(0);
     const results = [];
     for (let i = 0; i < runs; i++) {
-        const r = await launchOnce(true);
+        const r = await launchOnce(i + 1);
         results.push(r);
         console.log(
             `  run ${i + 1}: window ${r.windowMs} ms, prompt ${r.promptMs} ms  (backend ready ${r.backendMs} ms, tab init ${r.tabInitMs} ms, scripts ${r.scriptsMs} ms)`
