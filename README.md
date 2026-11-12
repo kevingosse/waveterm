@@ -1,117 +1,88 @@
-<p align="center">
-  <a href="https://www.waveterm.dev">
-	<picture>
-		<source media="(prefers-color-scheme: dark)" srcset="./assets/wave-dark.png">
-		<source media="(prefers-color-scheme: light)" srcset="./assets/wave-light.png">
-		<img alt="Wave Terminal Logo" src="./assets/wave-light.png" width="240">
-	</picture>
-  </a>
-  <br/>
-</p>
+# Wavelet
 
-# Wave Terminal
+Wavelet is an unofficial, personal fork of [Wave Terminal](https://github.com/wavetermdev/waveterm), cut down to what
+one person uses it for: a tiling terminal on Windows with WSL and SSH remotes, file previews, a web view, and the `wsh`
+command line for scripting all of it.
 
-<div align="center">
+It is not affiliated with or endorsed by Command Line Inc. It is also not a product: there are no releases and no
+installers, and nothing is promised to work anywhere except on its maintainer's machine. If you are looking for Wave
+Terminal, use [Wave Terminal](https://www.waveterm.dev).
 
-[English](README.md) | [한국어](README.ko.md) | [繁體中文](README.zh-TW.md)
+## How it differs from Wave Terminal
 
-</div>
+- **It lives next to an official Wave install without touching it.** Wavelet has its own name, app id, install
+  location, data and config directories, and its own directory on remotes (`~/.wavelet`). Nothing that manages the
+  official app can replace or update this one.
+- **It never contacts Wave's cloud.** No telemetry, no diagnostic ping, no auto-update.
+- **Shells start faster.** A local shell no longer launches `wsh` before its first prompt. On Windows that launch
+  could be held by antivirus for around ten seconds, which left new terminals sitting on the PowerShell banner.
+- **Profiles.** `WAVELET_PROFILE=<name>` gives an instance a separate set of directories, so a development build or
+  a release candidate can run beside the installed app.
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fwavetermdev%2Fwaveterm.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fwavetermdev%2Fwaveterm?ref=badge_shield)
+The direction from here is in [ROADMAP.md](ROADMAP.md).
 
-Wave is an open-source, AI-integrated terminal for macOS, Linux, and Windows. It works with any AI model. Bring your own API keys for OpenAI, Claude, or Gemini, or run local models via Ollama and LM Studio. No accounts required.
+## Building it
 
-Wave also supports durable SSH sessions that survive network interruptions and restarts, with automatic reconnection. Edit remote files with a built-in graphical editor and preview files inline without leaving the terminal.
+Windows only. You need:
 
-![WaveTerm Screenshot](./assets/wave-screenshot.webp)
+| Tool                              | Notes                                                |
+| --------------------------------- | ---------------------------------------------------- |
+| [Node.js](https://nodejs.org) 22+ | with npm                                             |
+| [Go](https://go.dev/dl/)          | the version named in `go.mod`                        |
+| [Task](https://taskfile.dev)      | `winget install Task.Task`                           |
+| [Zig](https://ziglang.org)        | the C compiler for the SQLite binding: `winget install zig.zig` |
 
-## Key Features
+Everything else is driven from PowerShell in the repository root.
 
-- Wave AI - Context-aware terminal assistant that reads your terminal output, analyzes widgets, and performs file operations
-- Durable SSH Sessions - Remote terminal sessions survive connection interruptions, network changes, and Wave restarts with automatic reconnection
-- Flexible drag & drop interface to organize terminal blocks, editors, web browsers, and AI assistants
-- Built-in editor for editing remote files with syntax highlighting and modern editor features
-- Rich file preview system for remote files (markdown, images, video, PDFs, CSVs, directories)
-- Quick full-screen toggle for any block - expand terminals, editors, and previews for better visibility, then instantly return to multi-block view
-- AI chat widget with support for multiple models (OpenAI, Claude, Azure, Perplexity, Ollama)
-- Command Blocks for isolating and monitoring individual commands
-- One-click remote connections with full terminal and file system access
-- Secure secret storage using native system backends - store API keys and credentials locally, access them across SSH sessions
-- Rich customization including tab themes, terminal styles, and background images
-- Powerful `wsh` command system for managing your workspace from the CLI and sharing data between terminal sessions
-- Connected file management with `wsh file` - seamlessly copy and sync files between local and remote SSH hosts
+### Develop
 
-## Wave AI
+```powershell
+task electron:winquickdev
+```
 
-Wave AI is your context-aware terminal assistant with access to your workspace:
+runs the app from source with hot reload, under the `dev` profile:
 
-- **Terminal Context**: Reads terminal output and scrollback for debugging and analysis
-- **File Operations**: Read, write, and edit files with automatic backups and user approval
-- **CLI Integration**: Use `wsh ai` to pipe output or attach files directly from the command line
-- **BYOK Support**: Bring your own API keys for OpenAI, Claude, Gemini, Azure, and other providers
-- **Local Models**: Run local models with Ollama, LM Studio, and other OpenAI-compatible providers
-- **Free Beta**: Included AI credits while we refine the experience
-- **Coming Soon**: Command execution (with approval)
+| What       | Where                               |
+| ---------- | ----------------------------------- |
+| data, logs | `%LOCALAPPDATA%\wavelet-dev\Data`   |
+| config     | `~\.config\wavelet-dev`             |
 
-Learn more in our [Wave AI documentation](https://docs.waveterm.dev/waveai) and [Wave AI Modes documentation](https://docs.waveterm.dev/waveai-modes).
+Run `task build:backend` first after changing Go types or anything in `cmd/wsh`; the quick task rebuilds only the
+server.
 
-## Installation
+Start it with `WAVELET_CDP_PORT=9333` set and the instance can be driven without touching it:
 
-Wave Terminal works on macOS, Linux, and Windows.
+```powershell
+node ops\cdp.mjs list                       # the tabs of the running instance
+node ops\cdp.mjs screenshot active shot.png # what the visible tab looks like
+node ops\cdp.mjs eval active "document.title"
+node ops\measure-prompt.mjs                 # time from new terminal block to first prompt
+```
 
-Platform-specific installation instructions can be found [here](https://docs.waveterm.dev/gettingstarted).
+### Deploy
 
-You can also install Wave Terminal directly from: [www.waveterm.dev/download](https://www.waveterm.dev/download).
+```powershell
+ops\deploy.ps1
+```
 
-### Minimum requirements
+builds the current commit, checks that the packaged build starts and reaches a shell prompt under a throwaway
+profile, and installs it to `%LOCALAPPDATA%\Programs\Wavelet`. If Wavelet is running, the new version is staged and
+takes over the next time Wavelet starts, so this is safe to run from a terminal inside Wavelet. Add `-Restart` to
+switch immediately.
 
-Wave Terminal runs on the following platforms:
+The previous version and a copy of the databases are kept. `ops\rollback.ps1` goes back.
 
-- macOS 11 or later (arm64, x64)
-- Windows 10 1809 or later (x64)
-- Linux based on glibc-2.28 or later (Debian 10, RHEL 8, Ubuntu 20.04, etc.) (arm64, x64)
+### Bring your Wave Terminal setup across
 
-The WSH helper runs on the following platforms:
+```powershell
+ops\migrate-from-wave.ps1
+```
 
-- macOS 11 or later (arm64, x64)
-- Windows 10 or later (x64)
-- Linux Kernel 2.6.32 or later (x64), Linux Kernel 3.1 or later (arm64)
-
-## Roadmap
-
-Wave is constantly improving! Our roadmap will be continuously updated with our goals for each release. You can find it [here](./ROADMAP.md).
-
-Want to provide input to our future releases? Connect with us on [Discord](https://discord.gg/XfvZ334gwU) or open a [Feature Request](https://github.com/wavetermdev/waveterm/issues/new/choose)!
-
-## Links
-
-- Homepage &mdash; https://www.waveterm.dev
-- Download Page &mdash; https://www.waveterm.dev/download
-- Documentation &mdash; https://docs.waveterm.dev
-- X &mdash; https://x.com/wavetermdev
-- Discord Community &mdash; https://discord.gg/XfvZ334gwU
-
-## Building from Source
-
-See [Building Wave Terminal](BUILD.md).
-
-## Contributing
-
-Wave uses GitHub Issues for issue tracking.
-
-Find more information in our [Contributions Guide](CONTRIBUTING.md), which includes:
-
-- [Ways to contribute](CONTRIBUTING.md#contributing-to-wave-terminal)
-- [Contribution guidelines](CONTRIBUTING.md#before-you-start)
-
-### Sponsoring Wave ❤️
-
-If Wave Terminal is useful to you or your company, consider sponsoring development.
-
-Sponsorship helps support the time spent building and maintaining the project.
-
-- https://github.com/sponsors/wavetermdev
+copies tabs, layouts, scrollback, settings and widgets from an official Wave install into Wavelet. Wave's files are
+only read, and Wave can stay open.
 
 ## License
 
-Wave Terminal is licensed under the Apache-2.0 License. For more information on our dependencies, see [here](./ACKNOWLEDGEMENTS.md).
+Apache-2.0, like Wave Terminal. See [LICENSE](LICENSE), [NOTICE](NOTICE) and
+[ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md). Files changed from their upstream version say so below their original
+header; `node ops\fork-notices.mjs` keeps those notices complete.
