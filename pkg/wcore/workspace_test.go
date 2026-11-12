@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 package wcore
 
 import (
@@ -31,6 +32,11 @@ func initTestWStore(t *testing.T) context.Context {
 	if err := wstore.InitWStore(); err != nil {
 		t.Fatalf("failed to init wstore: %v", err)
 	}
+	// Windows cannot remove the temp dir while the database file is open; cleanups run in reverse order of
+	// registration, so this one runs before t.TempDir's RemoveAll.
+	t.Cleanup(func() {
+		wstore.CloseWStore()
+	})
 	return context.Background()
 }
 
