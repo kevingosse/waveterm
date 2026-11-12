@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package shellexec
 
@@ -223,18 +224,18 @@ func StartWslShellProc(ctx context.Context, termSize waveobj.TermSize, cmdStr st
 		if shellType == shellutil.ShellType_bash {
 			// add --rcfile
 			// cant set -l or -i with --rcfile
-			bashPath := fmt.Sprintf("~/.waveterm/%s/.bashrc", shellutil.BashIntegrationDir)
+			bashPath := fmt.Sprintf("~/.wavelet/%s/.bashrc", shellutil.BashIntegrationDir)
 			shellOpts = append(shellOpts, "--rcfile", bashPath)
 		} else if shellType == shellutil.ShellType_fish {
 			if cmdOpts.Login {
 				shellOpts = append(shellOpts, "-l")
 			}
 			// source the wave.fish file
-			waveFishPath := fmt.Sprintf("~/.waveterm/%s/wave.fish", shellutil.FishIntegrationDir)
+			waveFishPath := fmt.Sprintf("~/.wavelet/%s/wave.fish", shellutil.FishIntegrationDir)
 			carg := fmt.Sprintf(`"source %s"`, waveFishPath)
 			shellOpts = append(shellOpts, "-C", carg)
 		} else if shellType == shellutil.ShellType_pwsh {
-			pwshPath := fmt.Sprintf("~/.waveterm/%s/wavepwsh.ps1", shellutil.PwshIntegrationDir)
+			pwshPath := fmt.Sprintf("~/.wavelet/%s/wavepwsh.ps1", shellutil.PwshIntegrationDir)
 			// powershell is weird about quoted path executables and requires an ampersand first
 			shellPath = "& " + shellPath
 			shellOpts = append(shellOpts, "-ExecutionPolicy", "Bypass", "-NoExit", "-File", pwshPath)
@@ -257,7 +258,7 @@ func StartWslShellProc(ctx context.Context, termSize waveobj.TermSize, cmdStr st
 	conn.Infof(ctx, "WSL-NEWSESSION (StartWslShellProc)\n")
 
 	if shellType == shellutil.ShellType_zsh {
-		zshDir := fmt.Sprintf("~/.waveterm/%s", shellutil.ZshIntegrationDir)
+		zshDir := fmt.Sprintf("~/.wavelet/%s", shellutil.ZshIntegrationDir)
 		conn.Infof(ctx, "setting ZDOTDIR to %s\n", zshDir)
 		cmdCombined = fmt.Sprintf(`ZDOTDIR=%s %s`, zshDir, cmdCombined)
 	}
@@ -381,18 +382,18 @@ func StartRemoteShellProc(ctx context.Context, logCtx context.Context, termSize 
 		if shellType == shellutil.ShellType_bash {
 			// add --rcfile
 			// cant set -l or -i with --rcfile
-			bashPath := fmt.Sprintf("%s/.waveterm/%s/.bashrc", remoteInfo.HomeDir, shellutil.BashIntegrationDir)
+			bashPath := fmt.Sprintf("%s/.wavelet/%s/.bashrc", remoteInfo.HomeDir, shellutil.BashIntegrationDir)
 			shellOpts = append(shellOpts, "--rcfile", bashPath)
 		} else if shellType == shellutil.ShellType_fish {
 			if cmdOpts.Login {
 				shellOpts = append(shellOpts, "-l")
 			}
 			// source the wave.fish file
-			waveFishPath := fmt.Sprintf("%s/.waveterm/%s/wave.fish", remoteInfo.HomeDir, shellutil.FishIntegrationDir)
+			waveFishPath := fmt.Sprintf("%s/.wavelet/%s/wave.fish", remoteInfo.HomeDir, shellutil.FishIntegrationDir)
 			carg := fmt.Sprintf(`"source %s"`, waveFishPath)
 			shellOpts = append(shellOpts, "-C", carg)
 		} else if shellType == shellutil.ShellType_pwsh {
-			pwshPath := fmt.Sprintf("%s/.waveterm/%s/wavepwsh.ps1", remoteInfo.HomeDir, shellutil.PwshIntegrationDir)
+			pwshPath := fmt.Sprintf("%s/.wavelet/%s/wavepwsh.ps1", remoteInfo.HomeDir, shellutil.PwshIntegrationDir)
 			// powershell is weird about quoted path executables and requires an ampersand first
 			shellPath = "& " + shellPath
 			shellOpts = append(shellOpts, "-ExecutionPolicy", "Bypass", "-NoExit", "-File", pwshPath)
@@ -442,7 +443,7 @@ func StartRemoteShellProc(ctx context.Context, logCtx context.Context, termSize 
 	session.Stdout = remoteStdoutWrite
 	session.Stderr = remoteStdoutWrite
 	if shellType == shellutil.ShellType_zsh {
-		zshDir := fmt.Sprintf("~/.waveterm/%s", shellutil.ZshIntegrationDir)
+		zshDir := fmt.Sprintf("~/.wavelet/%s", shellutil.ZshIntegrationDir)
 		conn.Infof(logCtx, "setting ZDOTDIR to %s\n", zshDir)
 		cmdCombined = fmt.Sprintf(`ZDOTDIR=%s %s`, zshDir, cmdCombined)
 	}
@@ -507,17 +508,17 @@ func StartRemoteShellJob(ctx context.Context, logCtx context.Context, termSize w
 
 	if cmdStr == "" {
 		if shellType == shellutil.ShellType_bash {
-			bashPath := fmt.Sprintf("%s/.waveterm/%s/.bashrc", remoteInfo.HomeDir, shellutil.BashIntegrationDir)
+			bashPath := fmt.Sprintf("%s/.wavelet/%s/.bashrc", remoteInfo.HomeDir, shellutil.BashIntegrationDir)
 			shellOpts = append(shellOpts, "--rcfile", bashPath)
 		} else if shellType == shellutil.ShellType_fish {
 			if cmdOpts.Login {
 				shellOpts = append(shellOpts, "-l")
 			}
-			waveFishPath := fmt.Sprintf("%s/.waveterm/%s/wave.fish", remoteInfo.HomeDir, shellutil.FishIntegrationDir)
+			waveFishPath := fmt.Sprintf("%s/.wavelet/%s/wave.fish", remoteInfo.HomeDir, shellutil.FishIntegrationDir)
 			carg := fmt.Sprintf(`source %s`, waveFishPath)
 			shellOpts = append(shellOpts, "-C", carg)
 		} else if shellType == shellutil.ShellType_pwsh {
-			pwshPath := fmt.Sprintf("%s/.waveterm/%s/wavepwsh.ps1", remoteInfo.HomeDir, shellutil.PwshIntegrationDir)
+			pwshPath := fmt.Sprintf("%s/.wavelet/%s/wavepwsh.ps1", remoteInfo.HomeDir, shellutil.PwshIntegrationDir)
 			shellOpts = append(shellOpts, "-ExecutionPolicy", "Bypass", "-NoExit", "-File", pwshPath)
 		} else {
 			if cmdOpts.Login {
@@ -543,7 +544,7 @@ func StartRemoteShellJob(ctx context.Context, logCtx context.Context, termSize w
 	env := make(map[string]string)
 	env["TERM"] = shellutil.DefaultTermType
 	if shellType == shellutil.ShellType_zsh {
-		zshDir := fmt.Sprintf("%s/.waveterm/%s", remoteInfo.HomeDir, shellutil.ZshIntegrationDir)
+		zshDir := fmt.Sprintf("%s/.wavelet/%s", remoteInfo.HomeDir, shellutil.ZshIntegrationDir)
 		conn.Infof(logCtx, "setting ZDOTDIR to %s\n", zshDir)
 		env["ZDOTDIR"] = zshDir
 	}

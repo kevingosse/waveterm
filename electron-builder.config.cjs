@@ -96,7 +96,8 @@ const config = {
         afterInstall: "build/deb-postinstall.tpl",
     },
     win: {
-        target: ["nsis", "msi", "zip"],
+        // An unpacked directory is all the local deploy script needs; installers only add build time.
+        target: ["dir"],
         signtoolOptions: windowsShouldSign && {
             signingHashAlgorithms: ["sha256"],
             publisherName: "Command Line Inc",
@@ -117,10 +118,9 @@ const config = {
         // this should remove /usr/lib/.build-id/ links which can conflict with other electron apps like slack
         fpm: ["--rpm-rpmbuild-define", "_build_id_links none"],
     },
-    publish: {
-        provider: "generic",
-        url: "https://dl.waveterm.dev/releases-w2",
-    },
+    // No publish target: this fork is deployed from local builds and must not point at upstream's update feed.
+    publish: null,
+    copyright: "Copyright 2025 Command Line Inc. Modifications copyright 2026 Wavelet contributors.",
     afterPack: (context) => {
         // This is a workaround to restore file permissions to the wavesrv binaries on macOS after packaging the universal binary.
         if (context.electronPlatformName === "darwin" && context.arch === Arch.universal) {

@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import * as electron from "electron";
 import * as child_process from "node:child_process";
@@ -17,6 +18,7 @@ import {
     getXdgCurrentDesktop,
     WaveConfigHomeVarName,
     WaveDataHomeVarName,
+    WaveLaunchOnlyVarNames,
 } from "./emain-platform";
 import {
     getElectronExecPath,
@@ -70,6 +72,9 @@ export function runWaveSrv(handleWSEvent: (evtMsg: WSEventType) => void): Promis
     envCopy[WaveAuthKeyEnv] = AuthKey;
     envCopy[WaveDataHomeVarName] = getWaveDataDir();
     envCopy[WaveConfigHomeVarName] = getWaveConfigDir();
+    for (const varName of WaveLaunchOnlyVarNames) {
+        delete envCopy[varName];
+    }
     const waveSrvCmd = getWaveSrvPath();
     console.log("trying to run local server", waveSrvCmd);
     const proc = child_process.spawn(getWaveSrvPath(), {

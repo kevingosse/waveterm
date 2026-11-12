@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package wavebase
 
@@ -61,10 +62,10 @@ const DomainSocketBaseName = "wave.sock"
 const RemoteDomainSocketBaseName = "wave-remote.sock"
 const WaveDBDir = "db"
 const ConfigDir = "config"
-const RemoteWaveHomeDirName = ".waveterm"
+const RemoteWaveHomeDirName = ".wavelet"
 const RemoteWshBinDirName = "bin"
-const RemoteFullWshBinPath = "~/.waveterm/bin/wsh"
-const RemoteFullDomainSocketPath = "~/.waveterm/wave-remote.sock"
+const RemoteFullWshBinPath = "~/.wavelet/bin/wsh"
+const RemoteFullDomainSocketPath = "~/.wavelet/wave-remote.sock"
 
 const AppPathBinDir = "bin"
 
@@ -186,7 +187,7 @@ func GetDomainSocketName() string {
 // returns a Unix-style path for the remote socket (using fmt.Sprintf instead of filepath.Join
 // because this path is for a remote Unix system, not the local OS which might be Windows)
 func GetPersistentRemoteSockName(clientId string) string {
-	return fmt.Sprintf("~/.waveterm/client/%s/waveterm.sock", clientId)
+	return fmt.Sprintf("~/.wavelet/client/%s/waveterm.sock", clientId)
 }
 
 func EnsureWaveDataDir() error {
@@ -205,38 +206,9 @@ func EnsureWavePresetsDir() error {
 	return CacheEnsureDir(filepath.Join(GetWaveConfigDir(), "presets"), "wavepresets", 0700, "wave presets directory")
 }
 
+// kept under the data dir so that every profile (and an official Wave install) has its own
 func resolveWaveCachesDir() string {
-	var cacheDir string
-	appBundle := "waveterm"
-	if IsDevMode() {
-		appBundle = "waveterm-dev"
-	}
-
-	switch runtime.GOOS {
-	case "darwin":
-		homeDir := GetHomeDir()
-		cacheDir = filepath.Join(homeDir, "Library", "Caches", appBundle)
-	case "linux":
-		xdgCache := os.Getenv("XDG_CACHE_HOME")
-		if xdgCache != "" {
-			cacheDir = filepath.Join(xdgCache, appBundle)
-		} else {
-			homeDir := GetHomeDir()
-			cacheDir = filepath.Join(homeDir, ".cache", appBundle)
-		}
-	case "windows":
-		localAppData := os.Getenv("LOCALAPPDATA")
-		if localAppData != "" {
-			cacheDir = filepath.Join(localAppData, appBundle, "Cache")
-		}
-	}
-
-	if cacheDir == "" {
-		tmpDir := os.TempDir()
-		cacheDir = filepath.Join(tmpDir, appBundle)
-	}
-
-	return cacheDir
+	return filepath.Join(GetWaveDataDir(), "cache")
 }
 
 func GetWaveCachesDir() string {
@@ -478,7 +450,7 @@ func getSystemSummary(ctx context.Context) string {
 
 // job socket path on remote machine
 func GetRemoteJobSocketPath(jobId string) string {
-	socketDir := filepath.Join("/tmp", fmt.Sprintf("waveterm-%d", os.Getuid()))
+	socketDir := filepath.Join("/tmp", fmt.Sprintf("wavelet-%d", os.Getuid()))
 	return filepath.Join(socketDir, fmt.Sprintf("%s.sock", jobId))
 }
 
@@ -491,6 +463,6 @@ func GetRemoteJobFilePath(jobId string, extension string) string {
 // job file dir on remote machines
 func GetRemoteJobLogDir() string {
 	homeDir := GetHomeDir()
-	jobDir := filepath.Join(homeDir, ".waveterm", "jobs")
+	jobDir := filepath.Join(homeDir, RemoteWaveHomeDirName, "jobs")
 	return jobDir
 }

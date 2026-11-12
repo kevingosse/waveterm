@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package wshremote
 
@@ -131,7 +132,7 @@ func (impl *ServerImpl) getWshPath() (string, error) {
 	if impl.IsLocal {
 		return filepath.Join(wavebase.GetWaveDataDir(), "bin", "wsh"), nil
 	}
-	wshPath, err := wavebase.ExpandHomeDir("~/.waveterm/bin/wsh")
+	wshPath, err := wavebase.ExpandHomeDir(wavebase.RemoteFullWshBinPath)
 	if err != nil {
 		return "", fmt.Errorf("cannot expand wsh path: %w", err)
 	}

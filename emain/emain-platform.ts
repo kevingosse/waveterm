@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { fireAndForget } from "@/util/util";
 import { app, dialog, ipcMain, shell } from "electron";
@@ -9,12 +10,6 @@ import os from "os";
 import path from "path";
 import { WaveDevVarName, WaveDevViteVarName } from "../frontend/util/isdev";
 import * as keyutil from "../frontend/util/keyutil";
-
-// This is a little trick to ensure that Electron puts all its runtime data into a subdirectory to avoid conflicts with our own data.
-// On macOS, it will store to ~/Library/Application \Support/waveterm/electron
-// On Linux, it will store to ~/.config/waveterm/electron
-// On Windows, it will store to %LOCALAPPDATA%/waveterm/electron
-app.setName("waveterm/electron");
 
 const isDev = !app.isPackaged;
 const isDevVite = isDev && process.env.ELECTRON_RENDERER_URL;
@@ -26,13 +21,51 @@ if (isDevVite) {
     process.env[WaveDevViteVarName] = "1";
 }
 
-const waveDirNamePrefix = "waveterm";
-const waveDirNameSuffix = isDev ? "dev" : "";
+const AppDisplayName = "Wavelet";
+const WaveProfileVarName = "WAVELET_PROFILE";
+const WaveCdpPortVarName = "WAVELET_CDP_PORT";
+// Meant for the instance being launched only. wavesrv's shells must not inherit them, otherwise an app started from a
+// terminal block would silently join this instance's profile or fight over its debugging port.
+const WaveLaunchOnlyVarNames = [WaveProfileVarName, WaveCdpPortVarName];
+
+// Lets tooling drive and screenshot a running instance over the Chrome DevTools Protocol. Strictly opt-in: the port
+// gives any local process full control of the app.
+const cdpPort = parseInt(process.env[WaveCdpPortVarName] ?? "", 10);
+if (cdpPort > 0 && cdpPort < 65536) {
+    console.log(`enabling remote debugging on port ${cdpPort} (${WaveCdpPortVarName})`);
+    app.commandLine.appendSwitch("remote-debugging-port", String(cdpPort));
+    // An instance under automation is usually covered by other windows. Without these, Chromium treats it as hidden:
+    // timers drop to 1Hz and rendering pauses, which makes timings and screenshots meaningless.
+    app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
+    app.commandLine.appendSwitch("disable-renderer-backgrounding");
+    app.commandLine.appendSwitch("disable-background-timer-throttling");
+}
+
+/**
+ * A profile gets its own data, config and Electron userData directories, so instances with different profiles can run
+ * side by side (a dev build or a release candidate next to the installed app). Unpackaged builds default to "dev".
+ */
+function resolveProfile(): string {
+    const fromEnv = process.env[WaveProfileVarName];
+    if (fromEnv && /^[a-z0-9][a-z0-9-]{0,30}$/.test(fromEnv)) {
+        return fromEnv;
+    }
+    if (fromEnv) {
+        console.log(`ignoring invalid ${WaveProfileVarName} ${JSON.stringify(fromEnv)}`);
+    }
+    return isDev ? "dev" : "";
+}
+
+// The fork's own directory prefix keeps it apart from an official Wave install on the same machine.
+const waveDirNamePrefix = "wavelet";
+const waveDirNameSuffix = resolveProfile();
 const waveDirName = `${waveDirNamePrefix}${waveDirNameSuffix ? `-${waveDirNameSuffix}` : ""}`;
 
-const paths = envPaths("waveterm", { suffix: waveDirNameSuffix });
+const paths = envPaths(waveDirNamePrefix, { suffix: waveDirNameSuffix });
 
-app.setName(isDev ? "Wave (Dev)" : "Wave");
+app.setName(waveDirNameSuffix ? `${AppDisplayName} (${waveDirNameSuffix})` : AppDisplayName);
+// Set explicitly because the single-instance lock is scoped to this directory, and so that it never depends on the display name.
+app.setPath("userData", path.join(app.getPath("appData"), waveDirName, "electron"));
 const unamePlatform = process.platform;
 const unameArch: string = process.arch;
 keyutil.setKeyUtilPlatform(unamePlatform);
@@ -283,4 +316,5 @@ export {
     unamePlatform,
     WaveConfigHomeVarName,
     WaveDataHomeVarName,
+    WaveLaunchOnlyVarNames,
 };

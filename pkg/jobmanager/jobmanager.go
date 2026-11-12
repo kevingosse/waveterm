@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package jobmanager
 
@@ -377,7 +378,7 @@ func (jm *JobManager) StartStream(msc *MainServerConn) error {
 }
 
 func MakeJobDomainSocket(clientId string, jobId string) error {
-	socketDir := filepath.Join("/tmp", fmt.Sprintf("waveterm-%d", os.Getuid()))
+	socketDir := filepath.Join("/tmp", fmt.Sprintf("wavelet-%d", os.Getuid()))
 	err := os.MkdirAll(socketDir, 0700)
 	if err != nil {
 		return fmt.Errorf("failed to create socket directory: %w", err)
