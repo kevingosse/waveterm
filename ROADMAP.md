@@ -111,6 +111,17 @@ Known small thing: the app never sets a Windows AppUserModelID, so a `wsh notify
 generated id instead of to "Wavelet" with its icon. Fixing it means setting the id in the app and on the Start menu
 shortcut that `ops/apply-staged.ps1` creates. Not checked on screen yet.
 
+## Loose ends
+
+Small things left over from making the fork its own, none of them urgent:
+
+- `wsh` help text still says "Wave Terminal".
+- The settings views, the durable-session popup and the ARM64 warning link to upstream's documentation site, which
+  describes upstream's product, including features that are gone here.
+- `electron-builder.config.cjs` still carries upstream's macOS and Linux sections, which nothing builds.
+- `.kilocode/skills/electron-api/SKILL.md` uses the removed `capture-screenshot` call as its example.
+- The bump mode of `version.cjs` relies on `semver` being installed as somebody else's dependency.
+
 ## Open questions
 
 - **Antivirus and PowerShell.** On the maintainer's machine, Windows Defender holds the first launch of PowerShell 7
