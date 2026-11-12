@@ -14,8 +14,6 @@ Wave Terminal's `wsh` command provides CLI access to Wave Terminal features. The
 1. **Cobra Framework** - CLI command structure and parsing
 2. **Command Files** - Individual command implementations in `cmd/wsh/cmd/wshcmd-*.go`
 3. **RPC Client** - Communication with Wave Terminal backend via `RpcClient`
-4. **Activity Tracking** - Telemetry for command usage analytics
-5. **Documentation** - User-facing docs in `docs/docs/wsh-reference.mdx`
 
 Commands are registered in their `init()` functions and execute through the Cobra framework.
 
@@ -64,12 +62,7 @@ func init() {
     myCommandCmd.Flags().BoolVarP(&myCommandFlagVerbose, "verbose", "v", false, "enable verbose output")
 }
 
-func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
-    // Always track activity for telemetry
-    defer func() {
-        sendActivity("mycommand", rtnErr == nil)
-    }()
-    
+func myCommandRun(cmd *cobra.Command, args []string) error {
     // Validate arguments
     if len(args) == 0 {
         OutputHelpMessage(cmd)
@@ -142,22 +135,17 @@ Include `PreRunE: preRunSetupRpcClient` if your command:
 #### Command Function Pattern
 
 ```go
-func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
-    // Step 1: Always track activity (for telemetry)
-    defer func() {
-        sendActivity("mycommand", rtnErr == nil)
-    }()
-    
-    // Step 2: Validate arguments and flags
+func myCommandRun(cmd *cobra.Command, args []string) error {
+    // Step 1: Validate arguments and flags
     if len(args) != 1 {
         OutputHelpMessage(cmd)
         return fmt.Errorf("requires exactly one argument")
     }
     
-    // Step 3: Parse/prepare data
+    // Step 2: Parse/prepare data
     targetArg := args[0]
     
-    // Step 4: Make RPC call if needed
+    // Step 3: Make RPC call if needed
     result, err := wshclient.SomeCommand(RpcClient, wshrpc.CommandSomeData{
         Field: targetArg,
     }, &wshrpc.RpcOpts{Timeout: 2000})
@@ -165,7 +153,7 @@ func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
         return fmt.Errorf("executing command: %w", err)
     }
     
-    // Step 5: Output results
+    // Step 4: Output results
     fmt.Printf("Result: %s\n", result)
     return nil
 }
@@ -173,27 +161,20 @@ func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
 
 **Important Patterns:**
 
-1. **Activity Tracking**: Always include deferred `sendActivity()` call
-   ```go
-   defer func() {
-       sendActivity("commandname", rtnErr == nil)
-   }()
-   ```
-
-2. **Error Handling**: Return errors, don't call `os.Exit()`
+1. **Error Handling**: Return errors, don't call `os.Exit()`
    ```go
    if err != nil {
        return fmt.Errorf("context: %w", err)
    }
    ```
 
-3. **Output**: Use standard `fmt` package for output
+2. **Output**: Use standard `fmt` package for output
    ```go
    fmt.Printf("Success message\n")
    fmt.Fprintf(os.Stderr, "Error message\n")
    ```
 
-4. **Help Messages**: Show help when arguments are invalid
+3. **Help Messages**: Show help when arguments are invalid
    ```go
    if len(args) == 0 {
        OutputHelpMessage(cmd)
@@ -201,7 +182,7 @@ func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
    }
    ```
 
-5. **Exit Codes**: Set custom exit code via `WshExitCode`
+4. **Exit Codes**: Set custom exit code via `WshExitCode`
    ```go
    if notFound {
        WshExitCode = 1
@@ -254,11 +235,7 @@ func init() {
 Many commands operate on blocks. Use the standard block resolution pattern:
 
 ```go
-func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
-    defer func() {
-        sendActivity("mycommand", rtnErr == nil)
-    }()
-    
+func myCommandRun(cmd *cobra.Command, args []string) error {
     // Resolve block using the -b/--block flag
     fullORef, err := resolveBlockArg()
     if err != nil {
@@ -338,57 +315,7 @@ if err != nil {
 - `Route`: Route ID for targeting specific components
 - Available routes: `wshutil.ControlRoute`, `wshutil.MakeTabRouteId(tabId)`
 
-### Step 7: Add Documentation
-
-Add your command to `docs/docs/wsh-reference.mdx`:
-
-````markdown
-## mycommand
-
-Brief description of what the command does.
-
-```sh
-wsh mycommand [args] [flags]
-```
-
-Detailed explanation of the command's purpose and behavior.
-
-Flags:
-- `-n, --name <value>` - description of this flag
-- `-v, --verbose` - enable verbose output
-- `-b, --block <blockid>` - specify target block (default: current block)
-
-Examples:
-
-```sh
-# Basic usage
-wsh mycommand arg1
-
-# With flags
-wsh mycommand --name value arg1
-
-# With block targeting
-wsh mycommand -b 2 arg1
-
-# Complex example
-wsh mycommand -v --name "example" arg1 arg2
-```
-
-Additional notes, tips, or warnings about the command.
-
----
-````
-
-**Documentation Guidelines:**
-- Place in alphabetical order with other commands
-- Include command signature with argument pattern
-- List all flags with short and long versions
-- Provide practical examples (at least 3-5)
-- Explain common use cases and patterns
-- Add tips or warnings if relevant
-- Use `---` separator between commands
-
-### Step 8: Test Your Command
+### Step 7: Test Your Command
 
 Build and test the command:
 
@@ -442,34 +369,11 @@ func init() {
     rootCmd.AddCommand(versionCmd)
 }
 
-func versionRun(cmd *cobra.Command, args []string) (rtnErr error) {
-    defer func() {
-        sendActivity("version", rtnErr == nil)
-    }()
-    
+func versionRun(cmd *cobra.Command, args []string) error {
     fmt.Printf("Wave Terminal %s\n", wavebase.WaveVersion)
     return nil
 }
 ```
-
-#### Documentation
-
-````markdown
-## version
-
-Print the current Wave Terminal version.
-
-```sh
-wsh version
-```
-
-Examples:
-
-```sh
-# Print version
-wsh version
-```
-````
 
 ### Example 2: Command with Flags and RPC
 
@@ -508,11 +412,7 @@ func init() {
     setTitleCmd.Flags().StringVarP(&setTitleIcon, "icon", "i", "", "set block icon")
 }
 
-func setTitleRun(cmd *cobra.Command, args []string) (rtnErr error) {
-    defer func() {
-        sendActivity("settitle", rtnErr == nil)
-    }()
-    
+func setTitleRun(cmd *cobra.Command, args []string) error {
     title := args[0]
     
     // Resolve block
@@ -541,37 +441,6 @@ func setTitleRun(cmd *cobra.Command, args []string) (rtnErr error) {
     return nil
 }
 ```
-
-#### Documentation
-
-````markdown
-## settitle
-
-Set the title for a block.
-
-```sh
-wsh settitle [title]
-```
-
-Update the display title for the current or specified block. Optionally set an icon as well.
-
-Flags:
-- `-i, --icon <icon>` - set block icon along with title
-- `-b, --block <blockid>` - specify target block (default: current block)
-
-Examples:
-
-```sh
-# Set title for current block
-wsh settitle "My Terminal"
-
-# Set title and icon
-wsh settitle --icon "terminal" "Development Shell"
-
-# Set title for specific block
-wsh settitle -b 2 "Build Output"
-```
-````
 
 ### Example 3: Subcommands
 
@@ -622,60 +491,18 @@ func init() {
     myGroupCmd.AddCommand(myGroupAddCmd)
 }
 
-func myGroupListRun(cmd *cobra.Command, args []string) (rtnErr error) {
-    defer func() {
-        sendActivity("mygroup:list", rtnErr == nil)
-    }()
-    
+func myGroupListRun(cmd *cobra.Command, args []string) error {
     // Implementation
     fmt.Printf("Listing items...\n")
     return nil
 }
 
-func myGroupAddRun(cmd *cobra.Command, args []string) (rtnErr error) {
-    defer func() {
-        sendActivity("mygroup:add", rtnErr == nil)
-    }()
-    
+func myGroupAddRun(cmd *cobra.Command, args []string) error {
     name := args[0]
     fmt.Printf("Adding item: %s\n", name)
     return nil
 }
 ```
-
-#### Documentation
-
-````markdown
-## mygroup
-
-Manage something with subcommands.
-
-### list
-
-List all items.
-
-```sh
-wsh mygroup list
-```
-
-### add
-
-Add a new item.
-
-```sh
-wsh mygroup add [name]
-```
-
-Examples:
-
-```sh
-# List items
-wsh mygroup list
-
-# Add an item
-wsh mygroup add "new-item"
-```
-````
 
 ## Common Patterns
 
@@ -684,11 +511,7 @@ wsh mygroup add "new-item"
 ```go
 import "io"
 
-func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
-    defer func() {
-        sendActivity("mycommand", rtnErr == nil)
-    }()
-    
+func myCommandRun(cmd *cobra.Command, args []string) error {
     // Check if reading from stdin (using "-" convention)
     var data []byte
     var err error
@@ -748,11 +571,7 @@ func loadJSONFile(filepath string) (map[string]interface{}, error) {
 ### Conditional Output (TTY Detection)
 
 ```go
-func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
-    defer func() {
-        sendActivity("mycommand", rtnErr == nil)
-    }()
-    
+func myCommandRun(cmd *cobra.Command, args []string) error {
     isTty := getIsTty()
     
     // Output value
@@ -770,11 +589,7 @@ func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
 ### Environment Variable Access
 
 ```go
-func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
-    defer func() {
-        sendActivity("mycommand", rtnErr == nil)
-    }()
-    
+func myCommandRun(cmd *cobra.Command, args []string) error {
     // Get block ID from environment
     blockId := os.Getenv("WAVETERM_BLOCKID")
     if blockId == "" {
@@ -831,18 +646,7 @@ func myCommandRun(cmd *cobra.Command, args []string) (rtnErr error) {
 
 ## Common Pitfalls
 
-### 1. Forgetting Activity Tracking
-
-**Problem**: Command usage not tracked in telemetry
-
-**Solution**: Always include deferred `sendActivity()` call:
-```go
-defer func() {
-    sendActivity("commandname", rtnErr == nil)
-}()
-```
-
-### 2. Using os.Exit() Instead of Returning Error
+### 1. Using os.Exit() Instead of Returning Error
 
 **Problem**: Breaks defer statements and cleanup
 
@@ -860,7 +664,7 @@ if err != nil {
 }
 ```
 
-### 3. Not Validating Arguments
+### 2. Not Validating Arguments
 
 **Problem**: Command crashes with nil pointer or index out of range
 
@@ -872,7 +676,7 @@ if len(args) == 0 {
 }
 ```
 
-### 4. Forgetting to Add to init()
+### 3. Forgetting to Add to init()
 
 **Problem**: Command not available when running wsh
 
@@ -883,7 +687,7 @@ func init() {
 }
 ```
 
-### 5. Inconsistent Output
+### 4. Inconsistent Output
 
 **Problem**: Inconsistent use of output methods
 
@@ -903,10 +707,9 @@ When adding a new wsh command:
 - [ ] Create `cmd/wsh/cmd/wshcmd-[commandname].go`
 - [ ] Define command struct with Use, Short, Long descriptions
 - [ ] Add `PreRunE: preRunSetupRpcClient` if using RPC
-- [ ] Implement command function with activity tracking
+- [ ] Implement command function
 - [ ] Add command to `rootCmd` in `init()` function
 - [ ] Define flags in `init()` function if needed
-- [ ] Add documentation to `docs/docs/wsh-reference.mdx`
 - [ ] Build and test: `task build:wsh`
 - [ ] Test help: `wsh [commandname] --help`
 - [ ] Test all flag combinations
@@ -917,5 +720,4 @@ When adding a new wsh command:
 - **Root Command**: `cmd/wsh/cmd/wshcmd-root.go` - Main command setup and utilities
 - **RPC Client**: `pkg/wshrpc/wshclient/` - Client functions for RPC calls
 - **RPC Types**: `pkg/wshrpc/wshrpctypes.go` - RPC request/response data structures
-- **Documentation**: `docs/docs/wsh-reference.mdx` - User-facing command reference
 - **Examples**: `cmd/wsh/cmd/wshcmd-*.go` - Existing command implementations

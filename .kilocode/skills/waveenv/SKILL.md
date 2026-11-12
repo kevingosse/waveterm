@@ -56,7 +56,6 @@ export type MyEnv = WaveEnvSubset<{
 
   // --- rpc: list only the commands you call ---
   rpc: {
-    ActivityCommand: WaveEnv["rpc"]["ActivityCommand"];
     ConnEnsureCommand: WaveEnv["rpc"]["ConnEnsureCommand"];
   };
 

@@ -16,7 +16,6 @@ Wave Terminal uses a hierarchical configuration system with:
 3. **Default Values** - Built-in defaults in `pkg/wconfig/defaultconfig/settings.json`
 4. **User Configuration** - User overrides in `~/.config/waveterm/settings.json`
 5. **Block Metadata** - Block-level overrides in `pkg/waveobj/wtypemeta.go`
-6. **Documentation** - User-facing docs in `docs/docs/config.mdx`
 
 Settings cascade from defaults → user settings → connection config → block overrides.
 
@@ -116,28 +115,7 @@ If your setting should have a default value, add it to `pkg/wconfig/defaultconfi
 - Keep defaults conservative and safe
 - Boolean settings often don't need defaults if `false` is the correct default
 
-### Step 3: Update Documentation
-
-Add your new setting to the configuration table in `docs/docs/config.mdx`:
-
-```markdown
-| Key Name            | Type     | Function                                  |
-| ------------------- | -------- | ----------------------------------------- |
-| mynew:setting       | string   | Description of what this setting controls |
-| mynew:boolsetting   | bool     | Enable/disable some feature               |
-| mynew:numbersetting | float    | Numeric setting for some parameter        |
-| mynew:intsetting    | int      | Integer setting for some configuration    |
-| mynew:arraysetting  | string[] | Array of strings for multiple values      |
-```
-
-**Documentation Guidelines:**
-
-- Provide clear, concise descriptions
-- For new settings in upcoming releases, add `<VersionBadge version="v0.14" />`
-- Update the default configuration example if you added defaults
-- Explain what values are valid and what they do
-
-### Step 4: Regenerate Schema and TypeScript Types
+### Step 3: Regenerate Schema and TypeScript Types
 
 Run the generate task to automatically regenerate the JSON schema and TypeScript types:
 
@@ -154,7 +132,7 @@ task generate
 
 **Important:** The JSON schema in `schema/settings.json` is **automatically generated** from the Go struct definitions - you don't need to edit it manually.
 
-### Step 5: Use in Frontend Code
+### Step 4: Use in Frontend Code
 
 Access your new setting in React components:
 
@@ -194,7 +172,7 @@ const connStatus = useAtomValue(getConnStatusAtom(connectionName));
 - Use `getSettingsKeyAtom()` for app-level settings that are always global
 - Always provide a fallback value with `??` operator
 
-### Step 6: Use in Backend Code
+### Step 5: Use in Backend Code
 
 Access settings in Go code:
 
@@ -235,19 +213,13 @@ type SettingsType struct {
 }
 ```
 
-#### 3. Documentation (`docs/docs/config.mdx`)
-
-```markdown
-| app:hideaibutton <VersionBadge version="v0.14" /> | bool | Hide the AI button in the tab bar (defaults to false) |
-```
-
-#### 4. Generate Types
+#### 3. Generate Types
 
 ```bash
 task generate
 ```
 
-#### 5. Frontend Usage
+#### 4. Frontend Usage
 
 ```typescript
 import { getSettingsKeyAtom } from "@/store/global";
@@ -263,7 +235,7 @@ const TabBar = () => {
 };
 ```
 
-#### 6. Usage Examples
+#### 5. Usage Examples
 
 ```bash
 # Set in settings file
@@ -305,19 +277,13 @@ type MetaTSType struct {
 }
 ```
 
-#### 4. Documentation (`docs/docs/config.mdx`)
-
-```markdown
-| term:bellsound <VersionBadge version="v0.14" /> | string | Sound to play for terminal bell ("default", "none", or custom sound file path) |
-```
-
-#### 5. Generate Types
+#### 4. Generate Types
 
 ```bash
 task generate
 ```
 
-#### 6. Frontend Usage
+#### 5. Frontend Usage
 
 ```typescript
 import { getOverrideConfigAtom } from "@/store/global";
@@ -336,7 +302,7 @@ const TerminalView = ({ blockId }: { blockId: string }) => {
 };
 ```
 
-#### 7. Usage Examples
+#### 6. Usage Examples
 
 ```bash
 # Set globally in settings file
@@ -438,20 +404,12 @@ const value = useAtomValue(getSettingsKeyAtom("key")) ?? "default";
 - **Provide sensible defaults** for settings users will commonly change
 - **Omit defaults** for advanced/optional settings
 - **Keep defaults safe** - don't enable experimental features by default
-- **Document defaults** clearly in config.mdx
 
 ### Block Overrides
 
 - **Enable for view/display settings**: Font sizes, colors, themes, etc.
 - **Don't enable for app-wide settings**: Global hotkeys, window behavior, etc.
 - **Consider the use case**: Would a user want different values per block or connection?
-
-### Documentation
-
-- **Be specific**: Explain what the setting does and what values are valid
-- **Provide examples**: Show common use cases
-- **Add version badges**: Mark new settings with `<VersionBadge version="v0.x" />`
-- **Keep it current**: Update docs when behavior changes
 
 ## Quick Reference
 
@@ -460,12 +418,10 @@ When adding a new configuration setting:
 - [ ] Add field to `SettingsType` in `pkg/wconfig/settingsconfig.go`
 - [ ] Add field to `MetaTSType` in `pkg/waveobj/wtypemeta.go` (if block override needed)
 - [ ] Add default to `pkg/wconfig/defaultconfig/settings.json` (if needed)
-- [ ] Document in `docs/docs/config.mdx`
 - [ ] Run `task generate` to update TypeScript types
 - [ ] Use appropriate atom (`getOverrideConfigAtom` or `getSettingsKeyAtom`) in frontend
 
 ## Related Documentation
 
-- **User Documentation**: `docs/docs/config.mdx` - User-facing configuration docs
 - **Type Definitions**: `pkg/wconfig/settingsconfig.go` - Go struct definitions
 - **Metadata Types**: `pkg/waveobj/wtypemeta.go` - Block metadata definitions
