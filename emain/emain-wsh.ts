@@ -5,7 +5,6 @@ import { WindowService } from "@/app/store/services";
 import { RpcResponseHelper, WshClient } from "@/app/store/wshclient";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { Notification, net, safeStorage, shell } from "electron";
-import { getResolvedUpdateChannel } from "emain/updater";
 import { unamePlatform } from "./emain-platform";
 import { getWebContentsByBlockId, webGetSelector } from "./emain-web";
 import { createBrowserWindow, getWaveWindowById, getWaveWindowByWorkspaceId } from "./emain-window";
@@ -39,8 +38,9 @@ export class ElectronWshClientType extends WshClient {
         }).show();
     }
 
+    // `wsh version -v` still asks Electron for the update channel; kept until the backend stops calling it.
     async handle_getupdatechannel(rh: RpcResponseHelper): Promise<string> {
-        return getResolvedUpdateChannel();
+        return "none";
     }
 
     async handle_focuswindow(rh: RpcResponseHelper, windowId: string) {

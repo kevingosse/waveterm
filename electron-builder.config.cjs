@@ -18,7 +18,6 @@ const config = {
     artifactName: "${productName}-${platform}-${arch}-${version}.${ext}",
     // the packaged app must report the same version that wavesrv and wsh were built with
     extraMetadata: { version },
-    generateUpdatesFilesForAllChannels: true,
     npmRebuild: false,
     nodeGypRebuild: false,
     electronCompile: false,

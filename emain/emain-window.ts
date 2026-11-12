@@ -16,7 +16,6 @@ import { getElectronAppBasePath, isDev, unamePlatform } from "./emain-platform";
 import { getOrCreateWebViewForTab, getWaveTabViewByWebContentsId, WaveTabView } from "./emain-tabview";
 import { delay, ensureBoundsAreVisible, waveKeyToElectronKey } from "./emain-util";
 import { ElectronWshClient } from "./emain-wsh";
-import { updater } from "./updater";
 
 const DevInitDiagnosticMs = 5000;
 
@@ -291,7 +290,7 @@ export class WaveBrowserWindow extends BaseWindow {
             }
             this.closeAllDevTools();
             console.log("win 'close' handler fired", this.waveWindowId);
-            if (getGlobalIsQuitting() || updater?.status == "installing" || getGlobalIsRelaunching()) {
+            if (getGlobalIsQuitting() || getGlobalIsRelaunching()) {
                 return;
             }
             e.preventDefault();
@@ -322,8 +321,8 @@ export class WaveBrowserWindow extends BaseWindow {
         });
         this.on("closed", () => {
             console.log("win 'closed' handler fired", this.waveWindowId);
-            if (getGlobalIsQuitting() || updater?.status == "installing") {
-                console.log("win quitting or updating", this.waveWindowId);
+            if (getGlobalIsQuitting()) {
+                console.log("win quitting", this.waveWindowId);
                 return;
             }
             setTimeout(() => globalEvents.emit("windows-updated"), 50);
