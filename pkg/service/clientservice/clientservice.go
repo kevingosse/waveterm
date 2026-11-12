@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package clientservice
 
@@ -48,22 +49,6 @@ func (cs *ClientService) GetAllConnStatus(ctx context.Context) ([]wshrpc.ConnSta
 // moves the window to the front of the windowId stack
 func (cs *ClientService) FocusWindow(ctx context.Context, windowId string) error {
 	return wcore.FocusWindow(ctx, windowId)
-}
-
-func (cs *ClientService) AgreeTos(ctx context.Context) (waveobj.UpdatesRtnType, error) {
-	ctx = waveobj.ContextWithUpdates(ctx)
-	clientData, err := wstore.DBGetSingleton[*waveobj.Client](ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error getting client data: %w", err)
-	}
-	timestamp := time.Now().UnixMilli()
-	clientData.TosAgreed = timestamp
-	err = wstore.DBUpdate(ctx, clientData)
-	if err != nil {
-		return nil, fmt.Errorf("error updating client data: %w", err)
-	}
-	wcore.BootstrapStarterLayout(ctx)
-	return waveobj.ContextGetUpdatesRtn(ctx), nil
 }
 
 func (cs *ClientService) TelemetryUpdate(ctx context.Context, telemetryEnabled bool) error {

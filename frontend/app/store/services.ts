@@ -46,10 +46,6 @@ export class ClientServiceType {
         this.waveEnv = waveEnv;
     }
 
-    // @returns object updates
-    AgreeTos(): Promise<void> {
-        return callBackendService(this?.waveEnv, "client", "AgreeTos", Array.from(arguments))
-    }
     FocusWindow(arg2: string): Promise<void> {
         return callBackendService(this?.waveEnv, "client", "FocusWindow", Array.from(arguments))
     }

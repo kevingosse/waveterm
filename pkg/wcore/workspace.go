@@ -48,7 +48,7 @@ var WorkspaceIcons = [...]string{
 	"mug-hot",
 }
 
-func CreateWorkspace(ctx context.Context, name string, icon string, color string, applyDefaults bool, isInitialLaunch bool) (*waveobj.Workspace, error) {
+func CreateWorkspace(ctx context.Context, name string, icon string, color string, applyDefaults bool) (*waveobj.Workspace, error) {
 	ws := &waveobj.Workspace{
 		OID:    uuid.NewString(),
 		TabIds: []string{},
@@ -60,7 +60,7 @@ func CreateWorkspace(ctx context.Context, name string, icon string, color string
 	if err != nil {
 		return nil, fmt.Errorf("error inserting workspace: %w", err)
 	}
-	_, err = CreateTab(ctx, ws.OID, "", true, isInitialLaunch)
+	_, err = CreateTab(ctx, ws.OID, "", true)
 	if err != nil {
 		return nil, fmt.Errorf("error creating tab: %w", err)
 	}
@@ -218,7 +218,7 @@ func getNextTabName(tabNames []string) string {
 }
 
 // returns tabid
-func CreateTab(ctx context.Context, workspaceId string, tabName string, activateTab bool, isInitialLaunch bool) (string, error) {
+func CreateTab(ctx context.Context, workspaceId string, tabName string, activateTab bool) (string, error) {
 	if tabName == "" {
 		ws, err := GetWorkspace(ctx, workspaceId)
 		if err != nil {
@@ -246,17 +246,14 @@ func CreateTab(ctx context.Context, workspaceId string, tabName string, activate
 		}
 	}
 
-	// No need to apply an initial layout for the initial launch, since the starter layout will get applied after onboarding modal dismissal
-	if !isInitialLaunch {
-		err = ApplyPortableLayout(ctx, tab.OID, GetNewTabLayout())
-		if err != nil {
-			return tab.OID, fmt.Errorf("error applying new tab layout: %w", err)
-		}
-		tabBg := getTabBackground()
-		if tabBg != "" {
-			tabORef := waveobj.ORefFromWaveObj(tab)
-			wstore.UpdateObjectMeta(ctx, *tabORef, waveobj.MetaMapType{waveobj.MetaKey_TabBackground: tabBg}, false)
-		}
+	err = ApplyPortableLayout(ctx, tab.OID, GetNewTabLayout())
+	if err != nil {
+		return tab.OID, fmt.Errorf("error applying new tab layout: %w", err)
+	}
+	tabBg := getTabBackground()
+	if tabBg != "" {
+		tabORef := waveobj.ORefFromWaveObj(tab)
+		wstore.UpdateObjectMeta(ctx, *tabORef, waveobj.MetaMapType{waveobj.MetaKey_TabBackground: tabBg}, false)
 	}
 	return tab.OID, nil
 }

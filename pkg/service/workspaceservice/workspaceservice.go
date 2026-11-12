@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package workspaceservice
 
@@ -29,7 +30,7 @@ func (svc *WorkspaceService) CreateWorkspace_Meta() tsgenmeta.MethodMeta {
 }
 
 func (svc *WorkspaceService) CreateWorkspace(ctx context.Context, name string, icon string, color string, applyDefaults bool) (string, error) {
-	newWS, err := wcore.CreateWorkspace(ctx, name, icon, color, applyDefaults, false)
+	newWS, err := wcore.CreateWorkspace(ctx, name, icon, color, applyDefaults)
 	if err != nil {
 		return "", fmt.Errorf("error creating workspace: %w", err)
 	}
@@ -150,7 +151,7 @@ func (svc *WorkspaceService) CreateTab(workspaceId string, tabName string, activ
 	ctx, cancelFn := context.WithTimeout(context.Background(), DefaultTimeout)
 	defer cancelFn()
 	ctx = waveobj.ContextWithUpdates(ctx)
-	tabId, err := wcore.CreateTab(ctx, workspaceId, tabName, activateTab, false)
+	tabId, err := wcore.CreateTab(ctx, workspaceId, tabName, activateTab)
 	if err != nil {
 		return "", nil, fmt.Errorf("error creating tab: %w", err)
 	}

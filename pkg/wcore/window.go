@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package wcore
 
@@ -82,7 +83,7 @@ func CreateWindow(ctx context.Context, winSize *waveobj.WinSize, workspaceId str
 	log.Printf("CreateWindow %v %v\n", winSize, workspaceId)
 	var ws *waveobj.Workspace
 	if workspaceId == "" {
-		ws1, err := CreateWorkspace(ctx, "", "", "", false, false)
+		ws1, err := CreateWorkspace(ctx, "", "", "", false)
 		if err != nil {
 			return nil, fmt.Errorf("error creating workspace: %w", err)
 		}
@@ -183,7 +184,7 @@ func CheckAndFixWindow(ctx context.Context, windowId string) *waveobj.Window {
 	}
 	if len(ws.TabIds) == 0 {
 		log.Printf("fixing workspace with no tabs %q (in checkAndFixWindow)\n", ws.OID)
-		_, err = CreateTab(ctx, ws.OID, "", true, false)
+		_, err = CreateTab(ctx, ws.OID, "", true)
 		if err != nil {
 			log.Printf("error creating tab (in checkAndFixWindow): %v\n", err)
 		}

@@ -13,7 +13,6 @@ import {
     registerGlobalKeys,
 } from "@/app/store/keymodel";
 import { modalsModel } from "@/app/store/modalmodel";
-import { ClientService } from "@/app/store/services";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { makeTabRouteId } from "@/app/store/wshrouter";
 import { initWshrpc, TabRpcClient } from "@/app/store/wshrpcutil";
@@ -37,7 +36,7 @@ import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 
 const platform = getApi().getPlatform();
-document.title = `Wave Terminal`;
+document.title = `Wavelet`;
 let savedInitOpts: WaveInitOpts = null;
 
 (window as any).WOS = WOS;
@@ -112,7 +111,7 @@ async function reinitWave() {
     const initialTab = await WOS.reloadWaveObject<Tab>(WOS.makeORef("tab", savedInitOpts.tabId));
     await WOS.reloadWaveObject<LayoutState>(WOS.makeORef("layout", initialTab.layoutstate));
     reloadAllWorkspaceTabs(ws);
-    document.title = `Wave Terminal - ${initialTab.name}`; // TODO update with tab name change
+    document.title = `Wavelet - ${initialTab.name}`; // TODO update with tab name change
     getApi().setWindowInitStatus("wave-ready");
     globalStore.set(atoms.reinitVersion, globalStore.get(atoms.reinitVersion) + 1);
     setTimeout(() => {
@@ -136,21 +135,6 @@ function loadAllWorkspaceTabs(ws: Workspace) {
     ws.tabids?.forEach((tabid) => {
         WOS.getObjectValue<Tab>(WOS.makeORef("tab", tabid));
     });
-}
-
-// AgreeTos is what creates the starter layout in a new profile's first tab; the name is left over from the removed
-// terms-of-service onboarding. It runs before the first render so that a new profile never shows an empty tab, and
-// goes away once the backend creates the starter layout together with the initial data.
-async function ensureStarterLayout(client: Client) {
-    if (client == null || client.tosagreed) {
-        return;
-    }
-    try {
-        await ClientService.AgreeTos();
-    } catch (e) {
-        console.error("error creating starter layout", e);
-        getApi().sendLog("Error creating starter layout " + e.message);
-    }
 }
 
 async function initWave(initOpts: WaveInitOpts) {
@@ -183,7 +167,7 @@ async function initWave(initOpts: WaveInitOpts) {
             const macOSVersion = await RpcApi.MacOSVersionCommand(TabRpcClient);
             setMacOSVersion(macOSVersion);
         }
-        const [client, waveWindow, initialTab] = await Promise.all([
+        const [_client, waveWindow, initialTab] = await Promise.all([
             WOS.loadAndPinWaveObject<Client>(WOS.makeORef("client", initOpts.clientId)),
             WOS.loadAndPinWaveObject<WaveWindow>(WOS.makeORef("window", initOpts.windowId)),
             WOS.loadAndPinWaveObject<Tab>(WOS.makeORef("tab", initOpts.tabId)),
@@ -194,8 +178,7 @@ async function initWave(initOpts: WaveInitOpts) {
         ]);
         loadAllWorkspaceTabs(ws);
         WOS.wpsSubscribeToObject(WOS.makeORef("workspace", waveWindow.workspaceid));
-        document.title = `Wave Terminal - ${initialTab.name}`; // TODO update with tab name change
-        await ensureStarterLayout(client);
+        document.title = `Wavelet - ${initialTab.name}`; // TODO update with tab name change
     } catch (e) {
         console.error("Failed initialization error", e);
         getApi().sendLog("Error in initialization (wave.ts, loading required objects) " + e.message + "\n" + e.stack);
