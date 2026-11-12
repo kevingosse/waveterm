@@ -581,6 +581,27 @@ func StartRemoteShellJob(ctx context.Context, logCtx context.Context, termSize w
 	return jobId, nil
 }
 
+// Reports whether user-supplied pwsh options already name something to run (-Command, -File, -EncodedCommand,
+// -CommandWithArgs, or an abbreviation). Everything after such an option is handed to that command as arguments,
+// so our own -File would never be seen by pwsh.
+func pwshOptsHaveCommand(opts []string) bool {
+	for _, opt := range opts {
+		lower := strings.ToLower(opt)
+		if len(lower) < 2 || lower[0] != '-' {
+			continue
+		}
+		if lower == "-ec" || lower == "-cwa" {
+			return true
+		}
+		for _, param := range []string{"-command", "-file", "-encodedcommand", "-commandwithargs"} {
+			if strings.HasPrefix(param, lower) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func StartLocalShellProc(logCtx context.Context, termSize waveobj.TermSize, cmdStr string, cmdOpts CommandOptsType, connName string) (*ShellProc, error) {
 	if cmdOpts.SwapToken == nil {
 		return nil, fmt.Errorf("SwapToken is required in CommandOptsType")
@@ -609,7 +630,9 @@ func StartLocalShellProc(logCtx context.Context, termSize waveobj.TermSize, cmdS
 			carg := fmt.Sprintf("source %s", shellutil.HardQuoteFish(waveFishPath))
 			shellOpts = append(shellOpts, "-C", carg)
 		} else if shellType == shellutil.ShellType_pwsh {
-			shellOpts = append(shellOpts, "-ExecutionPolicy", "Bypass", "-NoExit", "-File", shellutil.GetLocalWavePowershellEnv())
+			if !pwshOptsHaveCommand(shellOpts) {
+				shellOpts = append(shellOpts, "-ExecutionPolicy", "Bypass", "-NoExit", "-File", shellutil.GetLocalWavePowershellEnv())
+			}
 		} else {
 			if cmdOpts.Login {
 				shellOpts = append(shellOpts, "-l")
@@ -691,6 +714,9 @@ func StartLocalShellProc(logCtx context.Context, termSize waveobj.TermSize, cmdS
 		return nil, fmt.Errorf("invalid term size: %v", termSize)
 	}
 	if directEnv {
+		// wsh has to be reachable in shells that never run the integration script (cmd.exe, a shell started with its own -Command, ...)
+		wshPath := envToAdd["WAVETERM_WSHBINDIR"] + string(os.PathListSeparator) + os.Getenv("PATH")
+		shellutil.UpdateCmdEnv(ecmd, map[string]string{"PATH": wshPath})
 		// applied last so it overrides the defaults above, matching what the token exchange did inside the shell
 		shellutil.UpdateCmdEnv(ecmd, cmdOpts.SwapToken.Env)
 	} else {
