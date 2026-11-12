@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import {
     UseChatSendMessageType,
@@ -10,12 +11,10 @@ import {
 import { FocusManager } from "@/app/store/focusManager";
 import { atoms, createBlock, getOrefMetaKeyAtom, getSettingsKeyAtom } from "@/app/store/global";
 import { globalStore } from "@/app/store/jotaiStore";
-import { isBuilderWindow } from "@/app/store/windowtype";
 import * as WOS from "@/app/store/wos";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { WorkspaceLayoutModel } from "@/app/workspace/workspace-layout-model";
-import { BuilderFocusManager } from "@/builder/store/builder-focusmanager";
 import { getWebServerEndpoint } from "@/util/endpoints";
 import { base64ToArrayBuffer } from "@/util/util";
 import { ChatStatus } from "ai";
@@ -127,9 +126,6 @@ export class WaveAIModel {
         });
 
         this.isWaveAIFocusedAtom = jotai.atom((get) => {
-            if (this.inBuilder) {
-                return get(BuilderFocusManager.getInstance().focusType) === "waveai";
-            }
             return get(FocusManager.getInstance().focusType) === "waveai";
         });
 
@@ -176,15 +172,9 @@ export class WaveAIModel {
 
     static getInstance(): WaveAIModel {
         if (!WaveAIModel.instance) {
-            let orefContext: ORef;
-            if (isBuilderWindow()) {
-                const builderId = globalStore.get(atoms.builderId);
-                orefContext = WOS.makeORef("builder", builderId);
-            } else {
-                const tabId = globalStore.get(atoms.staticTabId);
-                orefContext = WOS.makeORef("tab", tabId);
-            }
-            WaveAIModel.instance = new WaveAIModel(orefContext, isBuilderWindow());
+            const tabId = globalStore.get(atoms.staticTabId);
+            const orefContext = WOS.makeORef("tab", tabId);
+            WaveAIModel.instance = new WaveAIModel(orefContext, false);
             (window as any).WaveAIModel = WaveAIModel.instance;
         }
         return WaveAIModel.instance;
@@ -611,19 +601,11 @@ export class WaveAIModel {
     }
 
     requestWaveAIFocus() {
-        if (this.inBuilder) {
-            BuilderFocusManager.getInstance().setWaveAIFocused();
-        } else {
-            FocusManager.getInstance().requestWaveAIFocus();
-        }
+        FocusManager.getInstance().requestWaveAIFocus();
     }
 
     requestNodeFocus() {
-        if (this.inBuilder) {
-            BuilderFocusManager.getInstance().setAppFocused();
-        } else {
-            FocusManager.getInstance().requestNodeFocus();
-        }
+        FocusManager.getInstance().requestNodeFocus();
     }
 
     getChatId(): string {

@@ -24,7 +24,6 @@ tasks:
         deps:
             - npm:install
             - build:backend
-            - build:tsunamiscaffold
         env:
             WAVETERM_ENVFILE: "{{.ROOT_DIR}}/.env"
             WAVETERM_NOCONFIRMQUIT: "1"
@@ -77,7 +76,6 @@ tasks:
             - task: clean
             - task: npm:install
             - task: build:backend
-            - task: build:tsunamiscaffold
             - npm run build:prod && npm exec electron-builder -- -c electron-builder.config.cjs -p never {{.CLI_ARGS}}
 
     build:frontend:dev:
@@ -293,21 +291,6 @@ tasks:
                 - VERSION
         cmd: (CGO_ENABLED=0 GOOS={{.GOOS}} GOARCH={{.GOARCH}} go build -ldflags="-s -w -X main.BuildTime=$({{.DATE}} +'%Y%m%d%H%M') -X main.WaveVersion={{.VERSION}}" -o dist/bin/wsh-{{.VERSION}}-{{.GOOS}}.{{.NORMALIZEDARCH}}{{.EXT}} cmd/wsh/main-wsh.go)
         internal: true
-
-    build:tsunamiscaffold:
-        desc: Build and copy tsunami scaffold to dist directory.
-        cmds:
-            - cmd: "{{.RMRF}} dist/tsunamiscaffold"
-              ignore_error: true
-            - task: copyfiles:'tsunami/frontend/scaffold':'dist/tsunamiscaffold'
-            - cmd: '{{if eq OS "windows"}}powershell -NoProfile -NonInteractive Copy-Item -Path tsunami/templates/empty-gomod.tmpl -Destination dist/tsunamiscaffold/go.mod{{else}}cp tsunami/templates/empty-gomod.tmpl dist/tsunamiscaffold/go.mod{{end}}'
-        deps:
-            - tsunami:scaffold
-        sources:
-            - "tsunami/frontend/dist/**/*"
-            - "tsunami/templates/**/*"
-        generates:
-            - "dist/tsunamiscaffold/**/*"
 
     generate:
         desc: Generate Typescript bindings for the Go backend.

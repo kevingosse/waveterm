@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { handleWaveEvent } from "@/app/store/wps";
 import * as util from "@/util/util";
@@ -22,10 +23,6 @@ function makeFeBlockRouteId(feBlockId: string): string {
 
 function makeTabRouteId(tabId: string): string {
     return `tab:${tabId}`;
-}
-
-function makeBuilderRouteId(builderId: string): string {
-    return `builder:${builderId}`;
 }
 
 class WshRouter {
@@ -157,4 +154,4 @@ class WshRouter {
     }
 }
 
-export { makeBuilderRouteId, makeFeBlockRouteId, makeTabRouteId, WshRouter };
+export { makeFeBlockRouteId, makeTabRouteId, WshRouter };

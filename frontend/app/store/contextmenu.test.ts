@@ -41,19 +41,12 @@ describe("ContextMenuModel", () => {
             onContextMenuClick,
             showContextMenu,
         }));
-        const workspace = { oid: "workspace-1" };
-
         vi.resetModules();
         vi.doMock("./global", () => ({
-            atoms: { workspace: "workspace", builderId: "builderId" },
+            atoms: { workspaceId: "workspaceId" },
             getApi,
             globalStore: {
-                get: vi.fn((atom) => {
-                    if (atom === "workspace") {
-                        return workspace;
-                    }
-                    return "builder-1";
-                }),
+                get: vi.fn((atom) => (atom === "workspaceId" ? "workspace-1" : null)),
             },
         }));
 
@@ -75,6 +68,7 @@ describe("ContextMenuModel", () => {
             { stopPropagation: vi.fn() } as any,
             { onSelect, onClose }
         );
+        expect(showContextMenu.mock.calls[0][0]).toBe("workspace-1");
         const menuId = showContextMenu.mock.calls[0][1][0].id;
         contextMenuCallback(menuId);
 
@@ -94,19 +88,12 @@ describe("ContextMenuModel", () => {
             onContextMenuClick,
             showContextMenu,
         }));
-        const workspace = { oid: "workspace-1" };
-
         vi.resetModules();
         vi.doMock("./global", () => ({
-            atoms: { workspace: "workspace", builderId: "builderId" },
+            atoms: { workspaceId: "workspaceId" },
             getApi,
             globalStore: {
-                get: vi.fn((atom) => {
-                    if (atom === "workspace") {
-                        return workspace;
-                    }
-                    return "builder-1";
-                }),
+                get: vi.fn((atom) => (atom === "workspaceId" ? "workspace-1" : null)),
             },
         }));
 

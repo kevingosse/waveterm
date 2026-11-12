@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import * as electron from "electron";
 import { getWebServerEndpoint } from "../frontend/util/endpoints";
@@ -155,30 +156,6 @@ export function shFrameNavHandler(event: Electron.Event<Electron.WebContentsWill
     ) {
         // allowed
         return;
-    }
-    if (event.frame.name != null && event.frame.name.startsWith("tsunami:")) {
-        // Parse port from frame name: tsunami:[port]:[blockid]
-        const nameParts = event.frame.name.split(":");
-        const expectedPort = nameParts.length >= 2 ? nameParts[1] : null;
-
-        try {
-            const tsunamiUrl = new URL(url);
-            if (
-                tsunamiUrl.protocol === "http:" &&
-                tsunamiUrl.hostname === "localhost" &&
-                expectedPort &&
-                tsunamiUrl.port === expectedPort
-            ) {
-                // allowed
-                return;
-            }
-            // If navigation is not to expected port, open externally
-            event.preventDefault();
-            electron.shell.openExternal(url);
-            return;
-        } catch (e) {
-            // Invalid URL, fall through to prevent navigation
-        }
     }
     event.preventDefault();
     console.log("frame navigation canceled", event.frame.name, url);

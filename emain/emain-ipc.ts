@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import * as electron from "electron";
 import { FastAverageColor } from "fast-average-color";
@@ -19,7 +20,6 @@ import {
     incrementTermCommandsWsl,
     setWasActive,
 } from "./emain-activity";
-import { createBuilderWindow, getAllBuilderWindows, getBuilderWindowByWebContentsId } from "./emain-builder";
 import { callWithOriginalXdgCurrentDesktopAsync, unamePlatform } from "./emain-platform";
 import { getWaveTabViewByWebContentsId } from "./emain-tabview";
 import { handleCtrlShiftState } from "./emain-util";
@@ -31,17 +31,6 @@ const electronApp = electron.app;
 
 let webviewFocusId: number = null;
 let webviewKeys: string[] = [];
-
-export function openBuilderWindow(appId?: string) {
-    const normalizedAppId = appId || "";
-    const existingBuilderWindows = getAllBuilderWindows();
-    const existingWindow = existingBuilderWindows.find((win) => win.builderAppId === normalizedAppId);
-    if (existingWindow) {
-        existingWindow.focus();
-        return;
-    }
-    fireAndForget(() => createBuilderWindow(normalizedAppId));
-}
 
 type UrlInSessionResult = {
     stream: Readable;
@@ -420,17 +409,6 @@ export function initIpcHandlers() {
             return;
         }
 
-        const builderWindow = getBuilderWindowByWebContentsId(event.sender.id);
-        if (builderWindow != null) {
-            if (status === "ready") {
-                if (builderWindow.savedInitOpts) {
-                    console.log("savedInitOpts calling builder-init", builderWindow.savedInitOpts.builderId);
-                    builderWindow.webContents.send("builder-init", builderWindow.savedInitOpts);
-                }
-            }
-            return;
-        }
-
         console.log("set-window-init-status: no window found for webContentsId", event.sender.id);
     });
 
@@ -458,51 +436,7 @@ export function initIpcHandlers() {
         event.sender.paste();
     });
 
-    electron.ipcMain.on("open-builder", (event, appId?: string) => {
-        openBuilderWindow(appId);
-    });
-
-    electron.ipcMain.on("set-builder-window-appid", (event, appId: string) => {
-        const bw = getBuilderWindowByWebContentsId(event.sender.id);
-        if (bw == null) {
-            return;
-        }
-        bw.builderAppId = appId;
-        console.log("set-builder-window-appid", bw.builderId, appId);
-    });
-
     electron.ipcMain.on("open-new-window", () => fireAndForget(createNewWaveWindow));
-
-    electron.ipcMain.on("close-builder-window", async (event) => {
-        const bw = getBuilderWindowByWebContentsId(event.sender.id);
-        if (bw == null) {
-            return;
-        }
-        const builderId = bw.builderId;
-        if (builderId) {
-            try {
-                await RpcApi.SetRTInfoCommand(ElectronWshClient, {
-                    oref: `builder:${builderId}`,
-                    data: {} as ObjRTInfo,
-                    delete: true,
-                });
-            } catch (e) {
-                console.error("Error deleting builder rtinfo:", e);
-            }
-        }
-        const wc = bw.webContents;
-        if (wc.isDevToolsOpened()) {
-            wc.closeDevTools();
-        }
-        for (const guest of electron.webContents.getAllWebContents()) {
-            if (guest.getType() === "webview" && guest.hostWebContents?.id === wc.id) {
-                if (guest.isDevToolsOpened()) {
-                    guest.closeDevTools();
-                }
-            }
-        }
-        bw.destroy();
-    });
 
     electron.ipcMain.on("do-refresh", (event) => {
         event.sender.reloadIgnoringCache();
