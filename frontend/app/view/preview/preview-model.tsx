@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { BlockNodeModel } from "@/app/block/blocktypes";
 import { ContextMenuModel } from "@/app/store/contextmenu";
@@ -17,8 +18,7 @@ import clsx from "clsx";
 import { Atom, atom, Getter, PrimitiveAtom, WritableAtom } from "jotai";
 import { loadable } from "jotai/utils";
 import type * as MonacoTypes from "monaco-editor";
-import { createRef } from "react";
-import { PreviewView } from "./preview";
+import { createRef, lazy } from "react";
 import { makeDirectoryDefaultMenuItems } from "./preview-directory-utils";
 import type { PreviewEnv } from "./previewenv";
 
@@ -30,6 +30,9 @@ const BOOKMARKS: { label: string; path: string }[] = [
     { label: "Documents", path: "~/Documents" },
     { label: "Root", path: "/" },
 ];
+
+// Loaded with the first preview block: the view brings the code editor and the markdown renderer with it.
+const PreviewView = lazy(async () => ({ default: (await import("./preview")).PreviewView }));
 
 const MaxFileSize = 1024 * 1024 * 10; // 10MB
 const MaxCSVSize = 1024 * 1024 * 1; // 1MB

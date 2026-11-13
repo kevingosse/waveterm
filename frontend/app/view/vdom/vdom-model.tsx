@@ -1,5 +1,6 @@
 // Copyright 2026, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { BlockNodeModel } from "@/app/block/blocktypes";
 import { getBlockMetaKeyAtom, globalStore, WOS } from "@/app/store/global";
@@ -10,15 +11,18 @@ import { RpcResponseHelper, WshClient } from "@/app/store/wshclient";
 import { RpcApi } from "@/app/store/wshclientapi";
 import { makeFeBlockRouteId } from "@/app/store/wshrouter";
 import { DefaultRouter, TabRpcClient } from "@/app/store/wshrpcutil";
-import { VDomView } from "@/app/view/vdom/vdom";
 import { applyCanvasOp, mergeBackendUpdates, restoreVDomElems } from "@/app/view/vdom/vdom-utils";
 import { getWebServerEndpoint } from "@/util/endpoints";
 import { adaptFromReactOrNativeKeyEvent, checkKeyPressed } from "@/util/keyutil";
 import { PLATFORM, PlatformMacOS } from "@/util/platformutil";
 import debug from "debug";
 import * as jotai from "jotai";
+import { lazy } from "react";
 
 const dlog = debug("wave:vdom");
+
+// Loaded with the first vdom block: the view brings the markdown renderer with it.
+const VDomView = lazy(async () => ({ default: (await import("@/app/view/vdom/vdom")).VDomView }));
 
 type AtomContainer = {
     val: any;

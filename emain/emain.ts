@@ -61,14 +61,16 @@ electron.nativeTheme.themeSource = "dark";
 console.log = log;
 console.log(
     sprintf(
-        "waveterm-app starting, data_dir=%s, config_dir=%s electronpath=%s gopath=%s arch=%s/%s electron=%s",
+        "waveterm-app starting, data_dir=%s, config_dir=%s electronpath=%s gopath=%s arch=%s/%s electron=%s sinceprocstart=%dms",
         waveDataDir,
         waveConfigDir,
         getElectronAppBasePath(),
         getElectronAppUnpackedBasePath(),
         unamePlatform,
         unameArch,
-        process.versions.electron
+        process.versions.electron,
+        // what the log cannot show otherwise: the time Electron itself took before this file ran
+        Date.now() - (process.getCreationTime() ?? Date.now())
     )
 );
 if (isDev) {
@@ -245,16 +247,17 @@ async function appMain() {
         console.log("second-instance event, argv:", argv, "workingDirectory:", workingDirectory);
         fireAndForget(createNewWaveWindow);
     });
-    try {
-        await runWaveSrv(handleWSEvent);
-    } catch (e) {
-        console.log(e.toString());
-    }
+    const waveSrvSpawned = runWaveSrv(handleWSEvent).catch((e) => console.log(e.toString()));
+    await electronApp.whenReady();
+    initIpcHandlers();
+    // The first tab's renderer starts loading now, while the backend comes up: until it is told which tab it is, it
+    // asks nothing of the backend. All it needs from the configuration is whether the window is see-through, and that
+    // is in the settings file.
+    ensureHotSpareTab({ settings: launchSettings ?? {} } as FullConfigType);
+    await waveSrvSpawned;
     const ready = await getWaveSrvReady();
     console.log("wavesrv ready signal received", ready, Date.now() - startTs, "ms");
-    await electronApp.whenReady();
     configureAuthKeyRequestInjection(electron.session.defaultSession);
-    initIpcHandlers();
 
     await sleep(10); // wait a bit for wavesrv to be ready
     try {
@@ -269,7 +272,6 @@ async function appMain() {
     if (fullConfig?.settings?.["app:confirmquit"] != null) {
         confirmQuit = fullConfig.settings["app:confirmquit"];
     }
-    ensureHotSpareTab(fullConfig);
     await relaunchBrowserWindows();
 
     makeAndSetAppMenu();

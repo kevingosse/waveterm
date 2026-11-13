@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
+import { StaticInfoArgPrefix } from "@/util/sharedconst";
 import { fireAndForget } from "@/util/util";
 import { app, dialog, ipcMain, shell } from "electron";
 import envPaths from "env-paths";
@@ -213,6 +214,22 @@ function getWaveSrvCwd(): string {
     return getWaveDataDir();
 }
 
+// What a tab would otherwise ask for one synchronous call at a time. Such a call waits for the main process, which
+// is busy while the app starts (the first one used to take 25 ms), so tabs are handed all of it when they are created.
+function getStaticInfoArg(): string {
+    const info = {
+        platform: unamePlatform,
+        isDev,
+        userName: os.userInfo().username,
+        hostName: os.hostname(),
+        dataDir: getWaveDataDir(),
+        configDir: getWaveConfigDir(),
+        homeDir: app.getPath("home"),
+        webviewPreload: path.join(getElectronAppBasePath(), "preload", "preload-webview.cjs"),
+    };
+    return StaticInfoArgPrefix + encodeURIComponent(JSON.stringify(info));
+}
+
 ipcMain.on("get-is-dev", (event) => {
     event.returnValue = isDev;
 });
@@ -305,6 +322,7 @@ export {
     getElectronAppBasePath,
     getElectronAppResourcesPath,
     getElectronAppUnpackedBasePath,
+    getStaticInfoArg,
     getWaveConfigDir,
     getWaveDataDir,
     getWaveSrvCwd,

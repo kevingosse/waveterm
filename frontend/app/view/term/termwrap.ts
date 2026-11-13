@@ -54,18 +54,14 @@ const MinDataProcessedForCache = 100 * 1024;
 export const SupportsImageInput = true;
 const MaxRepaintTransactionMs = 2000;
 
-// detect webgl support
-function detectWebGLSupport(): boolean {
-    try {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("webgl2");
-        return !!ctx;
-    } catch (e) {
-        return false;
-    }
-}
+// WebGL 2 is not probed for by asking for a context: that call blocks on the GPU process, for about 100 ms while the
+// app is starting, and upstream made it every time this file was loaded. A terminal that cannot get its WebGL
+// renderer finds out when it asks for it, and terminals use the DOM renderer from then on.
+let webglFailed = false;
 
-export const WebGLSupported = detectWebGLSupport();
+export function isWebGLSupported(): boolean {
+    return !webglFailed && typeof WebGL2RenderingContext !== "undefined";
+}
 let loggedWebGL = false;
 
 type TermWrapOptions = {
@@ -129,6 +125,8 @@ export class TermWrap {
         options: TermTypes.ITerminalOptions & TermTypes.ITerminalInitOnlyOptions,
         waveOptions: TermWrapOptions
     ) {
+        // startup milestones, see mark() in wave.ts
+        performance.mark("wave:term-create");
         this.loaded = false;
         this.tabId = tabId;
         this.blockId = blockId;
@@ -167,7 +165,7 @@ export class TermWrap {
         this.terminal.loadAddon(
             new WebLinksAddon(linkHandlers.activate, { hover: linkHandlers.hover, leave: linkHandlers.leave })
         );
-        this.setTermRenderer(WebGLSupported && waveOptions.useWebGl ? "webgl" : "dom");
+        this.setTermRenderer(isWebGLSupported() && waveOptions.useWebGl ? "webgl" : "dom");
         // Register OSC handlers
         this.terminal.parser.registerOscHandler(7, (data: string) => {
             try {
@@ -270,6 +268,13 @@ export class TermWrap {
         this.heldData = [];
         this.handleResize_debounced = debounce(50, this.handleResize.bind(this));
         this.terminal.open(this.connectElem);
+        if (this.webglAddon != null && (this.webglAddon as any)._renderer == null) {
+            // An addon loaded before open() creates its renderer during open(), where a failure does not reach us.
+            console.log("webgl renderer could not be created, using the dom renderer");
+            webglFailed = true;
+            this.setTermRenderer("dom");
+        }
+        performance.mark("wave:term-open");
 
         const dragoverHandler = (e: DragEvent) => {
             e.preventDefault();
@@ -329,7 +334,7 @@ export class TermWrap {
             if (this.webglAddon != null) {
                 return;
             }
-            if (!WebGLSupported) {
+            if (!isWebGLSupported()) {
                 renderer = "dom";
             }
         } else {
@@ -349,7 +354,15 @@ export class TermWrap {
             this.webglContextLossDisposable = addon.onContextLoss(() => {
                 this.setTermRenderer("dom");
             });
-            this.terminal.loadAddon(addon);
+            try {
+                this.terminal.loadAddon(addon);
+            } catch (e) {
+                console.log("webgl renderer could not be created, using the dom renderer", e);
+                webglFailed = true;
+                this.webglContextLossDisposable.dispose();
+                this.webglContextLossDisposable = null;
+                return;
+            }
             this.webglAddon = addon;
             globalStore.set(this.webglEnabledAtom, true);
             if (!loggedWebGL) {
@@ -423,6 +436,7 @@ export class TermWrap {
             await this.loadInitialTerminalData();
         } finally {
             this.loaded = true;
+            performance.mark("wave:term-loaded");
         }
         this.runProcessIdleTimeout();
     }

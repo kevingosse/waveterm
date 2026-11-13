@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { type WebSocket, newWebSocket } from "@/util/wsutil";
 import debug from "debug";
@@ -161,14 +162,12 @@ class WSControl {
         if (!this.open) {
             return;
         }
-        if (this.msgQueue.length == 0) {
-            return;
+        // All at once and in order. Upstream sent one message every 100 ms, which held back whatever was asked for
+        // while the socket was still opening: at startup, the second request of the main process and of every tab.
+        while (this.open && this.msgQueue.length > 0) {
+            const msg = this.msgQueue.shift();
+            this.sendMessage(msg);
         }
-        const msg = this.msgQueue.shift();
-        this.sendMessage(msg);
-        setTimeout(() => {
-            this.runMsgQueue();
-        }, 100);
     }
 
     onmessage(event: MessageEvent) {

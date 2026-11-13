@@ -37,7 +37,7 @@ import { boundNumber, fireAndForget, stringToBase64 } from "@/util/util";
 import * as jotai from "jotai";
 import * as React from "react";
 import { computeTheme, DefaultTermTheme, isLikelyOnSameHost, trimTerminalSelection } from "./termutil";
-import { TermWrap, WebGLSupported } from "./termwrap";
+import { isWebGLSupported, TermWrap } from "./termwrap";
 
 export class TermViewModel implements ViewModel {
     viewType: string;
@@ -388,7 +388,7 @@ export class TermViewModel implements ViewModel {
     }
 
     getWebGlIconButton(get: jotai.Getter): IconButtonDecl | null {
-        if (!WebGLSupported) {
+        if (!isWebGLSupported()) {
             return {
                 elemtype: "iconbutton",
                 icon: "microchip",

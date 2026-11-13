@@ -3,7 +3,6 @@
 // Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { App } from "@/app/app";
-import { loadMonaco } from "@/app/monaco/monaco-env";
 import { loadBadges } from "@/app/store/badge";
 import { GlobalModel } from "@/app/store/global-model";
 import {
@@ -38,6 +37,12 @@ import { createRoot } from "react-dom/client";
 const platform = getApi().getPlatform();
 document.title = `Wavelet`;
 let savedInitOpts: WaveInitOpts = null;
+let fontsLoaded: Promise<unknown> = null;
+
+// Startup milestones; ops/measure-startup.mjs reads them back with --timeline.
+function mark(name: string) {
+    performance.mark("wave:" + name);
+}
 
 (window as any).WOS = WOS;
 (window as any).globalStore = globalStore;
@@ -56,21 +61,24 @@ function updateZoomFactor(zoomFactor: number) {
 }
 
 async function initBare() {
+    mark("bare");
     getApi().sendLog("Init Bare");
     document.body.style.visibility = "hidden";
     document.body.style.opacity = "0";
     document.body.classList.add("is-transparent");
     getApi().onWaveInit(initWaveWrap);
     setKeyUtilPlatform(platform);
+    // The fonts are only needed for the first render, so they load while the tab is being initialised instead of
+    // holding that up; frontend/fonts.ts has normally started them already. A terminal must not render before they
+    // are in: it would measure its cells with a fallback font.
     loadFonts();
+    fontsLoaded = document.fonts.ready;
     updateZoomFactor(getApi().getZoomFactor());
     getApi().onZoomFactorChange((zoomFactor) => {
         updateZoomFactor(zoomFactor);
     });
-    document.fonts.ready.then(() => {
-        console.log("Init Bare Done");
-        getApi().setWindowInitStatus("ready");
-    });
+    console.log("Init Bare Done");
+    getApi().setWindowInitStatus("ready");
 }
 
 document.addEventListener("DOMContentLoaded", initBare);
@@ -138,6 +146,7 @@ function loadAllWorkspaceTabs(ws: Workspace) {
 }
 
 async function initWave(initOpts: WaveInitOpts) {
+    mark("init");
     getApi().sendLog("Init Wave " + JSON.stringify(initOpts));
     const globalInitOpts: GlobalInitOptions = {
         tabId: initOpts.tabId,
@@ -157,25 +166,35 @@ async function initWave(initOpts: WaveInitOpts) {
     (window as any).globalWS = globalWS;
     (window as any).TabRpcClient = TabRpcClient;
 
+    // Everything the first render needs is asked for at once; none of these requests depends on another's answer.
+    const fullConfigLoad = RpcApi.GetFullConfigCommand(TabRpcClient);
     // ensures client/window/workspace are loaded into the cache before rendering
     try {
-        await loadConnStatus();
-        await loadBadges();
+        const [_connStatus, _badges, [_client, waveWindow, initialTab]] = await Promise.all([
+            loadConnStatus(),
+            loadBadges(),
+            Promise.all([
+                WOS.loadAndPinWaveObject<Client>(WOS.makeORef("client", initOpts.clientId)),
+                WOS.loadAndPinWaveObject<WaveWindow>(WOS.makeORef("window", initOpts.windowId)),
+                WOS.loadAndPinWaveObject<Tab>(WOS.makeORef("tab", initOpts.tabId)),
+            ]),
+        ]);
         initGlobalWaveEventSubs(initOpts);
         subscribeToConnEvents();
         if (isMacOS()) {
             const macOSVersion = await RpcApi.MacOSVersionCommand(TabRpcClient);
             setMacOSVersion(macOSVersion);
         }
-        const [_client, waveWindow, initialTab] = await Promise.all([
-            WOS.loadAndPinWaveObject<Client>(WOS.makeORef("client", initOpts.clientId)),
-            WOS.loadAndPinWaveObject<WaveWindow>(WOS.makeORef("window", initOpts.windowId)),
-            WOS.loadAndPinWaveObject<Tab>(WOS.makeORef("tab", initOpts.tabId)),
-        ]);
+        // The tab's blocks are fetched along with the rest. Left to the first render, each block would only appear
+        // one round trip after it.
+        const blockLoads = (initialTab.blockids ?? []).map((blockId) =>
+            WOS.reloadWaveObject<Block>(WOS.makeORef("block", blockId))
+        );
         const [ws, _layoutState] = await Promise.all([
             WOS.loadAndPinWaveObject<Workspace>(WOS.makeORef("workspace", waveWindow.workspaceid)),
             WOS.reloadWaveObject<LayoutState>(WOS.makeORef("layout", initialTab.layoutstate)),
         ]);
+        await Promise.all(blockLoads);
         loadAllWorkspaceTabs(ws);
         WOS.wpsSubscribeToObject(WOS.makeORef("workspace", waveWindow.workspaceid));
         document.title = `Wavelet - ${initialTab.name}`; // TODO update with tab name change
@@ -186,10 +205,13 @@ async function initWave(initOpts: WaveInitOpts) {
     registerGlobalKeys();
     registerElectronReinjectKeyHandler();
     registerControlShiftStateUpdateHandler();
-    await loadMonaco();
-    const fullConfig = await RpcApi.GetFullConfigCommand(TabRpcClient);
+    mark("objects");
+    const fullConfig = await fullConfigLoad;
     console.log("fullconfig", fullConfig);
     globalStore.set(atoms.fullConfigAtom, fullConfig);
+    mark("config");
+    await fontsLoaded;
+    mark("fonts");
     console.log("Wave First Render");
     let firstRenderResolveFn: () => void = null;
     const firstRenderPromise = new Promise<void>((resolve) => {
@@ -200,6 +222,7 @@ async function initWave(initOpts: WaveInitOpts) {
     const root = createRoot(elem);
     root.render(reactElem);
     await firstRenderPromise;
+    mark("rendered");
     console.log("Wave First Render Done");
     getApi().setWindowInitStatus("wave-ready");
 }

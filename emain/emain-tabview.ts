@@ -9,7 +9,8 @@ import { Rectangle, shell, WebContentsView } from "electron";
 import { createNewWaveWindow, getWaveWindowById } from "emain/emain-window";
 import path from "path";
 import { configureAuthKeyRequestInjection } from "./authkey";
-import { getElectronAppBasePath, isDevVite, unamePlatform } from "./emain-platform";
+import { getGlobalIsStarting } from "./emain-activity";
+import { getElectronAppBasePath, getStaticInfoArg, isDevVite, unamePlatform } from "./emain-platform";
 import {
     decreaseZoomLevel,
     handleCtrlShiftFocus,
@@ -138,6 +139,7 @@ export class WaveTabView extends WebContentsView {
             webPreferences: {
                 preload: path.join(getElectronAppBasePath(), "preload", "index.cjs"),
                 webviewTag: true,
+                additionalArguments: [getStaticInfoArg()],
             },
         });
         this.createdTs = Date.now();
@@ -371,6 +373,11 @@ function removeWaveTabView(waveTabId: string): void {
 
 let HotSpareTab: WaveTabView = null;
 
+const SpareTabDelayMs = 500;
+// While the app starts, the next spare waits until the first tab has had time to appear: loading a second renderer
+// at that moment takes time from the one the user is waiting for.
+const StartupSpareTabDelayMs = 2500;
+
 export function ensureHotSpareTab(fullConfig: FullConfigType) {
     console.log("ensureHotSpareTab");
     if (HotSpareTab == null) {
@@ -379,7 +386,7 @@ export function ensureHotSpareTab(fullConfig: FullConfigType) {
 }
 
 export function getSpareTab(fullConfig: FullConfigType): WaveTabView {
-    setTimeout(() => ensureHotSpareTab(fullConfig), 500);
+    setTimeout(() => ensureHotSpareTab(fullConfig), getGlobalIsStarting() ? StartupSpareTabDelayMs : SpareTabDelayMs);
     if (HotSpareTab != null) {
         const rtn = HotSpareTab;
         HotSpareTab = null;

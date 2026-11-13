@@ -1,13 +1,16 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { Modal } from "@/app/modals/modal";
-import { Markdown } from "@/element/markdown";
 import { modalsModel } from "@/store/modalmodel";
 import * as keyutil from "@/util/keyutil";
 import { fireAndForget } from "@/util/util";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UserInputService } from "../store/services";
+
+// Loaded with the first prompt that uses it, like the views that render markdown.
+const Markdown = lazy(async () => ({ default: (await import("@/element/markdown")).Markdown }));
 
 const UserInputModal = (userInputRequest: UserInputRequest) => {
     const [responseText, setResponseText] = useState("");
@@ -80,7 +83,11 @@ const UserInputModal = (userInputRequest: UserInputRequest) => {
 
     const queryText = useMemo(() => {
         if (userInputRequest.markdown) {
-            return <Markdown text={userInputRequest.querytext} />;
+            return (
+                <Suspense fallback={<span>{userInputRequest.querytext}</span>}>
+                    <Markdown text={userInputRequest.querytext} />
+                </Suspense>
+            );
         }
         return <span>{userInputRequest.querytext}</span>;
     }, [userInputRequest.markdown, userInputRequest.querytext]);

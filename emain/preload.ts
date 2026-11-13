@@ -2,21 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 // Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
+import { StaticInfoArgPrefix } from "@/util/sharedconst";
 import { contextBridge, ipcRenderer, webUtils, WebviewTag } from "electron";
+
+// Facts that never change while the app runs arrive on the command line (see getStaticInfoArg in emain-platform.ts),
+// so that asking for them does not wait for the main process. The synchronous calls remain as a fallback.
+function readStaticInfo(): Record<string, any> {
+    try {
+        const arg = process.argv.find((a) => a.startsWith(StaticInfoArgPrefix));
+        return arg == null ? {} : JSON.parse(decodeURIComponent(arg.slice(StaticInfoArgPrefix.length)));
+    } catch (_) {
+        return {};
+    }
+}
+const staticInfo = readStaticInfo();
 
 // update type in custom.d.ts (ElectronApi type)
 contextBridge.exposeInMainWorld("api", {
     getAuthKey: () => ipcRenderer.sendSync("get-auth-key"),
-    getIsDev: () => ipcRenderer.sendSync("get-is-dev"),
-    getPlatform: () => ipcRenderer.sendSync("get-platform"),
+    getIsDev: () => staticInfo.isDev ?? ipcRenderer.sendSync("get-is-dev"),
+    getPlatform: () => staticInfo.platform ?? ipcRenderer.sendSync("get-platform"),
     getCursorPoint: () => ipcRenderer.sendSync("get-cursor-point"),
-    getUserName: () => ipcRenderer.sendSync("get-user-name"),
-    getHostName: () => ipcRenderer.sendSync("get-host-name"),
-    getDataDir: () => ipcRenderer.sendSync("get-data-dir"),
-    getConfigDir: () => ipcRenderer.sendSync("get-config-dir"),
-    getHomeDir: () => ipcRenderer.sendSync("get-home-dir"),
+    getUserName: () => staticInfo.userName ?? ipcRenderer.sendSync("get-user-name"),
+    getHostName: () => staticInfo.hostName ?? ipcRenderer.sendSync("get-host-name"),
+    getDataDir: () => staticInfo.dataDir ?? ipcRenderer.sendSync("get-data-dir"),
+    getConfigDir: () => staticInfo.configDir ?? ipcRenderer.sendSync("get-config-dir"),
+    getHomeDir: () => staticInfo.homeDir ?? ipcRenderer.sendSync("get-home-dir"),
     getAboutModalDetails: () => ipcRenderer.sendSync("get-about-modal-details"),
-    getWebviewPreload: () => ipcRenderer.sendSync("get-webview-preload"),
+    getWebviewPreload: () => staticInfo.webviewPreload ?? ipcRenderer.sendSync("get-webview-preload"),
     getZoomFactor: () => ipcRenderer.sendSync("get-zoom-factor"),
     openNewWindow: () => ipcRenderer.send("open-new-window"),
     showWorkspaceAppMenu: (workspaceId) => ipcRenderer.send("workspace-appmenu-show", workspaceId),

@@ -1,11 +1,14 @@
 // Copyright 2026, Wavelet contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Measures a cold start of a packaged build: how long until the window is shown, and how long until the terminal in
-// the restored tab has a shell prompt. Runs under a throwaway "bench" profile, so it never touches real data and can
-// run while the installed app is open.
+// Measures a cold start of a packaged build: how long until the window is shown, until it has content, and until the
+// terminal in the restored tab has a shell prompt. Runs under a throwaway "bench" profile, so it never touches real
+// data and can run while the installed app is open.
 //
-//   node ops/measure-startup.mjs [--app <dir with Wavelet.exe>] [--runs N] [--port N]
+//   node ops/measure-startup.mjs [--app <dir with Wavelet.exe>] [--runs N] [--port N] [--timeline]
+//
+// --timeline adds the milestones the tab records on its way (the "wave:" performance marks set in frontend/wave.ts
+// and in the terminal view), as medians over the runs.
 //
 // The first launch creates the profile and takes whatever antivirus does to a binary it has not seen; it is not
 // counted. Close other heavy work first: builds running at the same time easily double the numbers.
@@ -24,6 +27,7 @@ function takeOpt(name, defaultValue) {
 const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const appDir = path.resolve(takeOpt("--app", path.join(repoRoot, "make", "win-unpacked")));
 const runs = Number(takeOpt("--runs", "5"));
+const timeline = args.includes("--timeline");
 const port = takeOpt("--port", "9466");
 const exe = path.join(appDir, "Wavelet.exe");
 const cdp = path.join(repoRoot, "ops", "cdp.mjs");
@@ -84,16 +88,33 @@ function waitForPrompt(n) {
                 const buf = tw.terminal.buffer.active;
                 const cursorLine = buf.getLine(buf.baseY + buf.cursorY)?.translateToString(true) ?? "";
                 if (marker.test(cursorLine)) {
+                    const promptAt = Math.round(performance.timeOrigin + performance.now());
+                    // the prompt can be in the terminal's buffer before the window has drawn anything at all
+                    let paint = null;
+                    while (paint == null && performance.now() < deadline) {
+                        paint = performance.getEntriesByType("paint").find((p) => p.name === "first-contentful-paint");
+                        if (paint == null) {
+                            await new Promise((r) => setTimeout(r, 10));
+                        }
+                    }
                     const nav = performance.getEntriesByType("navigation")[0];
+                    const marks = { navigation: Math.round(performance.timeOrigin) };
+                    for (const m of performance.getEntriesByType("mark")) {
+                        if (m.name.startsWith("wave:") && marks[m.name.slice(5)] == null) {
+                            marks[m.name.slice(5)] = Math.round(performance.timeOrigin + m.startTime);
+                        }
+                    }
                     return JSON.stringify({
-                        promptAt: Math.round(performance.timeOrigin + performance.now()),
+                        promptAt,
+                        contentAt: paint == null ? null : Math.round(performance.timeOrigin + paint.startTime),
                         scriptsMs: Math.round(nav.domContentLoadedEventEnd - nav.domInteractive),
+                        marks,
                     });
                 }
             }
             await new Promise((r) => setTimeout(r, 10));
         }
-        return JSON.stringify({ promptAt: null, scriptsMs: null });
+        return JSON.stringify({ promptAt: null, contentAt: null, scriptsMs: null, marks: {} });
     })()`;
 }
 
@@ -129,7 +150,15 @@ async function launchOnce(run) {
         stdio: "ignore",
     });
     child.unref();
-    const result = { windowMs: null, backendMs: null, tabInitMs: null, scriptsMs: null, promptMs: null };
+    const result = {
+        windowMs: null,
+        contentMs: null,
+        backendMs: null,
+        tabInitMs: null,
+        scriptsMs: null,
+        promptMs: null,
+        marks: {},
+    };
     try {
         const deadline = Date.now() + 90000;
         let shown = null;
@@ -156,7 +185,11 @@ async function launchOnce(run) {
         if (measure) {
             const prompt = JSON.parse(cdpEval(waitForPrompt(run)));
             result.promptMs = prompt.promptAt == null ? null : prompt.promptAt - launchedAt;
+            result.contentMs = prompt.contentAt == null ? null : prompt.contentAt - launchedAt;
             result.scriptsMs = prompt.scriptsMs;
+            for (const [name, at] of Object.entries(prompt.marks)) {
+                result.marks[name] = at - launchedAt;
+            }
         } else {
             await sleep(1500);
             console.log(`  warm-up: ${cdpEval(ensureTerminal)}`);
@@ -193,16 +226,25 @@ try {
         const r = await launchOnce(i + 1);
         results.push(r);
         console.log(
-            `  run ${i + 1}: window ${r.windowMs} ms, prompt ${r.promptMs} ms  (backend ready ${r.backendMs} ms, tab init ${r.tabInitMs} ms, scripts ${r.scriptsMs} ms)`
+            `  run ${i + 1}: window ${r.windowMs} ms, content ${r.contentMs} ms, prompt ${r.promptMs} ms  (backend ready ${r.backendMs} ms, tab init ${r.tabInitMs} ms, scripts ${r.scriptsMs} ms)`
         );
     }
-    const keys = ["windowMs", "promptMs", "backendMs", "tabInitMs", "scriptsMs"];
+    const keys = ["windowMs", "contentMs", "promptMs", "backendMs", "tabInitMs", "scriptsMs"];
     const medians = Object.fromEntries(keys.map((k) => [k, median(results.map((r) => r[k]))]));
     console.log(
-        `median of ${runs}: window ${medians.windowMs} ms, prompt ${medians.promptMs} ms  (backend ready ${medians.backendMs} ms, tab init ${medians.tabInitMs} ms, scripts ${medians.scriptsMs} ms)`
+        `median of ${runs}: window ${medians.windowMs} ms, content ${medians.contentMs} ms, prompt ${medians.promptMs} ms  (backend ready ${medians.backendMs} ms, tab init ${medians.tabInitMs} ms, scripts ${medians.scriptsMs} ms)`
     );
-    console.log("window = launch until the window is shown; prompt = launch until the restored terminal has a prompt;");
+    console.log("window = launch until the window is shown; content = until it has drawn its first text;");
+    console.log("prompt = until the restored terminal holds a prompt (on screen once both have happened);");
     console.log("scripts = time the renderer spends loading and running its JavaScript before it can start initialising");
+    if (timeline) {
+        const names = [...new Set(results.flatMap((r) => Object.keys(r.marks)))];
+        const rows = names.map((name) => [name, median(results.map((r) => r.marks[name]))]).sort((a, b) => a[1] - b[1]);
+        console.log("timeline of the tab, ms after launch (medians):");
+        for (const [name, at] of rows) {
+            console.log(`  ${String(at).padStart(5)}  ${name}`);
+        }
+    }
 } finally {
     removeProfile();
 }

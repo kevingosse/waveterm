@@ -22,6 +22,8 @@ const DevInitDiagnosticMs = 5000;
 export type WindowOpts = {
     unamePlatform: NodeJS.Platform;
     foregroundWindow?: boolean;
+    // show the window as soon as it exists, before its tab has loaded
+    showAtOnce?: boolean;
 };
 
 export const MinWindowWidth = 800;
@@ -725,6 +727,12 @@ export async function createBrowserWindow(
     }
     console.log("createBrowserWindow", waveWindow.oid, workspace.oid, workspace);
     const bwin = new WaveBrowserWindow(waveWindow, fullConfig, opts);
+    if (opts.showAtOnce) {
+        // Chromium does no graphics work for a window that is not on screen. Shown now, the window gets its surface
+        // while the tab loads, instead of making the tab wait for it afterwards (about 100 ms at startup).
+        console.log("show window", bwin.waveWindowId);
+        bwin.show();
+    }
 
     if (workspace.activetabid) {
         await bwin.setActiveTab(workspace.activetabid, false);
@@ -896,6 +904,7 @@ export async function relaunchBrowserWindows() {
         const win = await createBrowserWindow(windowData, fullConfig, {
             unamePlatform,
             foregroundWindow: windowId === primaryWindowId,
+            showAtOnce: true,
         });
         wins.push(win);
         if (windowId === primaryWindowId) {
@@ -904,6 +913,9 @@ export async function relaunchBrowserWindows() {
         }
     }
     for (const win of wins) {
+        if (win.isDestroyed() || win.isVisible()) {
+            continue;
+        }
         console.log("show window", win.waveWindowId);
         win.show();
     }
