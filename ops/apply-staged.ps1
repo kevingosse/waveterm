@@ -30,7 +30,15 @@ try {
     }
     if ($WaitForExit) {
         Write-DeployLog "apply: waiting for $AppName to exit"
-        while ((Get-ProcessesUnder $LiveAppDir).Count -gt 0) {
+        while ($true) {
+            try {
+                if ((Get-ProcessesUnder $LiveAppDir).Count -eq 0) {
+                    break
+                }
+            } catch {
+                # The process list comes from WMI, which fails now and then ("The remote procedure call failed").
+                # Giving up here would leave the build staged with nothing left to apply it.
+            }
             Start-Sleep -Seconds 1
         }
         # give Windows a moment to release the handles of the processes that just went away
@@ -58,10 +66,20 @@ try {
     if (Test-Path $PrevAppDir) {
         Remove-Item -Recurse -Force $PrevAppDir
     }
+    $movedLive = $false
     if (Test-Path $LiveAppDir) {
         Rename-Item $LiveAppDir (Split-Path -Leaf $PrevAppDir)
+        $movedLive = $true
     }
-    Rename-Item $StagedAppDir (Split-Path -Leaf $LiveAppDir)
+    try {
+        Rename-Item $StagedAppDir (Split-Path -Leaf $LiveAppDir)
+    } catch {
+        # never leave the machine without an installed app: the old one goes back before the failure is reported
+        if ($movedLive) {
+            Rename-Item $PrevAppDir (Split-Path -Leaf $LiveAppDir)
+        }
+        throw
+    }
 
     $exe = Join-Path $LiveAppDir "$AppName.exe"
     $shortcutPath = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\$AppName.lnk"

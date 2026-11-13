@@ -184,6 +184,13 @@ async function launchOnce(run) {
         result.windowMs = shown - launchedAt;
         if (measure) {
             const prompt = JSON.parse(cdpEval(waitForPrompt(run)));
+            // the window is shown before its tab has loaded, so the tab reports in after the loop above has ended
+            for (const line of logLinesSince(logOffset)) {
+                const tabInit = /tabview init (\d+)ms/.exec(line);
+                if (tabInit && result.tabInitMs == null) {
+                    result.tabInitMs = Number(tabInit[1]);
+                }
+            }
             result.promptMs = prompt.promptAt == null ? null : prompt.promptAt - launchedAt;
             result.contentMs = prompt.contentAt == null ? null : prompt.contentAt - launchedAt;
             result.scriptsMs = prompt.scriptsMs;
