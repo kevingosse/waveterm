@@ -31,8 +31,9 @@ Windows x64 is built and tested, plus `wsh` for Linux x64 and arm64 (WSL, SSH ho
 stages and swaps; `ops/rollback.ps1` goes back. Versions are `0.20.<commits since the fork point>`.
 
 **The name is Wavelet, its colour is blue, and its mark is its own.** The mark is a Ricker wavelet drawn as a single
-stroke, white on a blue plate for the app icon and on its own inside the app. `ops/make-icon.mjs` draws it from the
-formula and writes every image that shows it. It replaced a recoloured copy of upstream's logo: the licence covers
+blue stroke with nothing behind it, in the app and as the app icon alike (a first version of the icon put it in white
+on a blue plate; the maintainer preferred the bare stroke). `ops/make-icon.mjs` draws it from the formula and writes
+every image that shows it. It replaced a recoloured copy of upstream's logo: the licence covers
 upstream's code, not its name or logo, and the fork and an official install should be easy to tell apart. The
 interface accent (focus borders, buttons, links) stays upstream's green, by the maintainer's choice.
 

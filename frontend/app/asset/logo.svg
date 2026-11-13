@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="44" viewBox="0 0 64 44" fill="none">
 <!-- Copyright 2026, Wavelet contributors. SPDX-License-Identifier: Apache-2.0 -->
 <!-- Written by ops/make-icon.mjs; change it there. -->
-<defs><linearGradient id="mark" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0091CA" /><stop offset="1" stop-color="#00C6FF" /></linearGradient></defs>
+<defs><linearGradient id="mark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00C6FF"/><stop offset="1" stop-color="#0091CA"/></linearGradient></defs>
 <path d="M3 30.13C3.97 30.4 4.93 30.77 5.9 31.31C6.87 31.85 7.83 32.55 8.8 33.43C9.77 34.32 10.73 35.38 11.7 36.49C12.67 37.6 13.63 38.76 14.6 39.64C15.57 40.53 16.53 41.11 17.5 40.98C18.47 40.85 19.43 39.98 20.4 38.13C21.37 36.28 22.33 33.44 23.3 29.91C24.27 26.37 25.23 22.14 26.2 18.07C27.17 13.99 28.13 10.1 29.1 7.34C30.07 4.59 31.03 3 32 3C32.97 3 33.93 4.59 34.9 7.34C35.87 10.1 36.83 13.99 37.8 18.07C38.77 22.14 39.73 26.37 40.7 29.91C41.67 33.44 42.63 36.28 43.6 38.13C44.57 39.98 45.53 40.85 46.5 40.98C47.47 41.11 48.43 40.53 49.4 39.64C50.37 38.76 51.33 37.6 52.3 36.49C53.27 35.38 54.23 34.32 55.2 33.43C56.17 32.55 57.13 31.85 58.1 31.31C59.07 30.77 60.03 30.4 61 30.13" stroke="url(#mark)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
 </svg>
