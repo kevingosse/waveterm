@@ -112,6 +112,70 @@ function Write-Step([string]$Message) {
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
+# Creates a process from an executable without running any of it (suspended, then ended at once) and returns the
+# milliseconds that took. Antivirus scans an executable it has no verdict for at exactly this point, so this measures
+# such a hold, and takes it ahead of time. Nothing appears on screen.
+function Measure-SuspendedStart([string]$Exe) {
+    if (-not ('SuspendedStart' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+
+public static class SuspendedStart
+{
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct STARTUPINFO
+    {
+        public int cb;
+        public string lpReserved, lpDesktop, lpTitle;
+        public int dwX, dwY, dwXSize, dwYSize, dwXCountChars, dwYCountChars, dwFillAttribute, dwFlags;
+        public short wShowWindow, cbReserved2;
+        public IntPtr lpReserved2, hStdInput, hStdOutput, hStdError;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct PROCESS_INFORMATION
+    {
+        public IntPtr hProcess, hThread;
+        public int dwProcessId, dwThreadId;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern bool CreateProcessW(string app, IntPtr cmd, IntPtr pa, IntPtr ta, bool inherit, uint flags,
+        IntPtr env, string cwd, ref STARTUPINFO si, out PROCESS_INFORMATION pi);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool TerminateProcess(IntPtr h, uint code);
+
+    [DllImport("kernel32.dll")]
+    static extern bool CloseHandle(IntPtr h);
+
+    const uint CREATE_SUSPENDED = 0x00000004;
+    const uint CREATE_NO_WINDOW = 0x08000000;
+
+    public static double Time(string exe)
+    {
+        var si = new STARTUPINFO();
+        si.cb = Marshal.SizeOf(typeof(STARTUPINFO));
+        PROCESS_INFORMATION pi;
+        var sw = Stopwatch.StartNew();
+        bool ok = CreateProcessW(exe, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, false,
+            CREATE_SUSPENDED | CREATE_NO_WINDOW, IntPtr.Zero, null, ref si, out pi);
+        sw.Stop();
+        if (!ok) throw new Win32Exception(Marshal.GetLastWin32Error());
+        TerminateProcess(pi.hProcess, 0);
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        return sw.Elapsed.TotalMilliseconds;
+    }
+}
+'@
+    }
+    [SuspendedStart]::Time($Exe)
+}
+
 # Consistent copy of a SQLite database that may be open in a running app.
 function Copy-SqliteSnapshot([string]$Source, [string]$Destination) {
     New-Item -ItemType Directory -Force (Split-Path -Parent $Destination) | Out-Null

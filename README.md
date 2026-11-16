@@ -65,7 +65,8 @@ node ops\measure-prompt.mjs                 # time from new terminal block to fi
 ```
 
 `node ops\measure-startup.mjs` measures cold starts of a packaged build (window shown, first live prompt) under a
-throwaway profile.
+throwaway profile. `ops\antivirus-hold.ps1` measures what comes before all of that: how long antivirus holds the
+start of an executable it has not seen, which is what the first start of the day pays.
 
 ### Deploy
 

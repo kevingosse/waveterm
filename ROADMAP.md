@@ -30,7 +30,9 @@ would load a browser engine (WebView2) only for the blocks that are web pages an
 the settings editor, whose existing views could be reused. Estimated gains: the window with its restored screen at
 about 0.1 s instead of 0.65 s; the prompt at about 0.65 s instead of 0.78 s, because the backend, and with it the
 shell, could be started 0.14 s sooner (PowerShell's own start-up, about 0.6 s, is most of the prompt and stays);
-and memory, the installed app holding 650 MB in five Electron processes when it was measured. The cost: the front end
+and memory, the installed app holding 650 MB in five Electron processes when it was measured. Its executable would
+also be a fraction of Electron's 212 MB, which antivirus scans in full before the first start of the day can even
+begin (4 to 14 s; see the open questions); the scan grows with the file. The cost: the front end
 of a terminal emulator (rendering, selection, search, input methods), the tiling layout and the tab bar written
 again, with the long tail of details that come with them, over many sessions, while the Electron front end is kept
 working.
@@ -204,17 +206,23 @@ Small things left over from making the fork its own, none of them urgent:
   the window as well: 0.75 s to the window and 0.90 s to the prompt, median of six cold starts. Nothing in the app
   depends on the exclusion; it is a security trade-off to make per machine, and the numbers to compare against
   depend on whether it is in place.
-- **Antivirus and fresh builds.** Every build is a new unsigned binary, and Defender sometimes holds a Go binary it
-  has not seen at its path for about ten seconds on first launch. The deploy launches the installed binaries once to
-  take that hit early; after that, launches from the install directory were not held again in the hours observed.
+- **Antivirus and the app's own executable: the slow first start of the day.** Windows Defender scans an executable
+  in full before Windows creates a process from it, whenever it has no verdict for the file: after every build (each
+  is a new unsigned binary), and again after each update of its definitions, which happens about daily. So it is the
+  first start of the day that pays, and the first after a deploy. `Wavelet.exe` is 212 MB; scanning it took 4.4 to
+  13.7 s in five tries on the maintainer's machine, and 11.5 s on the morning of 2026-11-16, counted from Explorer's
+  record of the click to the creation of the process. From there on that start was as fast as any other. The deploy
+  takes the scan of a new build in the background, right after the swap; the daily one remains. The time
+  passes before the app exists, so nothing in the app can shorten it, and its log did not show it: the backend now
+  writes it to the log a few seconds after each start made through Explorer (`launch:`), and `ops/antivirus-hold.ps1`
+  reproduces the hold at will. The process exclusion mentioned above does not prevent it. It covers the files the
+  app opens, which is why the backend, 28 MB and new with every build, starts in 0.13 s from the app while a copy of
+  it started from anywhere else is held 1.5 s; it does not cover the app's own file when Explorer starts it.
+  According to Microsoft's documentation an exclusion of the file or of the install folder does; whether to add one
+  is again a trade-off to make per machine, and it has not been tried here yet.
 - **A terminal that lost its first output.** Once, a terminal block created by a script within seconds of the app
   starting showed neither its first line of output nor its first prompt until something was typed. Two retries on a
   settled instance were fine. Unconfirmed; the suspect is the terminal view being rebuilt while the tab is still
   initialising (it is rebuilt whenever any `term:*` setting object changes).
-- **A slow first start of the day.** On 2026-11-13 the first launch after the machine had been off was slow: the
-  backend took 444 ms to be ready instead of 50, and the window came 1.5 s after the log's first line instead of 0.7 s.
-  Later launches were normal. Probably files that were not in the system's cache yet, but the log could not show how
-  long Electron had taken before that first line. It does now (`sinceprocstart` on the "starting" line); look at it
-  the next time this happens.
 - **Keyboard navigation out of a web block** could not be checked with injected key events (they do not reach the
   app's key handling while a web view has focus, on builds from before the cleanup as well). Check by hand.

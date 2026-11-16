@@ -109,6 +109,14 @@ try {
     foreach ($binary in $warmups) {
         Start-Process -FilePath $binary.FullName -ArgumentList 'version' -WindowStyle Hidden | Out-Null
     }
+    # The app's own executable is scanned in full before its first start too, which takes several seconds for a file
+    # of its size. That is taken here as well, without running it. A failure only means the next start pays instead.
+    try {
+        $held = Measure-SuspendedStart $exe
+        Write-DeployLog ("apply: the first start of $AppName.exe was held for {0:N1} s" -f ($held / 1000))
+    } catch {
+        Write-DeployLog "apply: could not take the first start of $AppName.exe ahead of time: $_"
+    }
 
     $version = Get-AppVersion $LiveAppDir
     Write-DeployLog "apply: $AppName $version is now live"

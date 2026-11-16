@@ -24,6 +24,7 @@ import (
 	"github.com/wavetermdev/waveterm/pkg/remote/fileshare/wshfs"
 	"github.com/wavetermdev/waveterm/pkg/service"
 	"github.com/wavetermdev/waveterm/pkg/util/envutil"
+	"github.com/wavetermdev/waveterm/pkg/util/launchwait"
 	"github.com/wavetermdev/waveterm/pkg/util/shellutil"
 	"github.com/wavetermdev/waveterm/pkg/util/sigutil"
 	"github.com/wavetermdev/waveterm/pkg/wavebase"
@@ -310,6 +311,12 @@ func main() {
 	}()
 	go wshutil.RunWshRpcOverListener(unixListener, nil)
 	go blockcontroller.PrestartActiveTabShells(context.Background())
+	go func() {
+		defer func() {
+			panichandler.PanicHandler("LogLaunchWait", recover())
+		}()
+		launchwait.LogLaunchWait()
+	}()
 	web.RunWebServer(webListener) // blocking
 	runtime.KeepAlive(waveLock)
 }
