@@ -220,8 +220,13 @@ Known gaps, in the order they are likely to matter:
 - Going back to a build from before this (`ops/rollback.ps1`) closes the floating blocks: that build takes blocks
   that are not in the tree for orphans and deletes them.
 
-Not measured: start-up. The layout model does a little more when a tab loads; `ops/measure-startup.mjs` needs a
-packaged build and should be run before this is deployed.
+Start-up is unchanged by all of this. Measured on 2026-11-18 with `ops/measure-startup.mjs` (medians of five cold
+starts of a packaged build, against the build from before the layout work): window after 247 ms (249 before), first
+content after 600 ms (613), and the tab's own milestones agree to within a few milliseconds (drawn at 481 ms in
+both, terminal loaded at 515 against 519). The prompt cannot be compared as cleanly, because both builds had to be
+run from the repository, where antivirus holds the shell for about a second: 1.76 s against 1.72 s, when the same
+older build takes 0.73 s once installed. The tab has been waiting for the shell for over a second by then, so the
+40 ms are not the tab's.
 
 Still to be designed, for agents: what `wsh` can already do (open previews, editors, web views, read scrollback) is
 awkward in places. Addressing blocks is clumsy, and each call costs about 60 ms, nearly all of it process start.
