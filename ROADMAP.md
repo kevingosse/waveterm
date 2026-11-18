@@ -195,6 +195,12 @@ was built on 2026-11-18 is a first iteration of that, to be tried and corrected:
 - A new block asked for from the app (Alt+N, a widget) fills empty space if there is some, as a floating block, and
   becomes a tile as before if there is none. Splitting a floating block halves its rectangle. A block is floated or
   docked from its header menu; a floating one also has a button for it.
+- **New blocks from the title bar.** The widget bar spends a column of the window on a handful of buttons, and the
+  maintainer keeps it hidden, which left no button to open a terminal with. There is one at the left of the title
+  bar now: a click opens a terminal, the arrow beside it lists the widgets, which is where the kinds of terminal are
+  defined (`widgets.json`), and the settings, which had no other way in once the bar was hidden. It took the place of
+  the workspace switcher, which is gone with its editor: workspaces can still be created and switched from the app
+  menu, but no longer renamed or deleted.
 
 Tiles were kept, rather than turning every block into a window, because the tabs that are split on purpose work, and
 there a block that closes should give its space back. Saved layouts are untouched: the tree is stored as before, with

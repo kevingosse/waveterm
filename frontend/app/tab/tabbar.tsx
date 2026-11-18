@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
-import { Tooltip } from "@/app/element/tooltip";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { useWaveEnv } from "@/app/waveenv/waveenv";
 import { deleteLayoutModelForTab } from "@/layout/index";
@@ -12,10 +11,10 @@ import { useAtomValue } from "jotai";
 import { OverlayScrollbars } from "overlayscrollbars";
 import { createRef, memo, useCallback, useEffect, useRef, useState } from "react";
 import { debounce } from "throttle-debounce";
+import { NewBlockButton } from "./newblockbutton";
 import { Tab } from "./tab";
 import "./tabbar.scss";
 import { TabBarEnv } from "./tabbarenv";
-import { WorkspaceSwitcher } from "./workspaceswitcher";
 
 const TabDefaultWidth = 130;
 const TabMinWidth = 100;
@@ -90,7 +89,7 @@ const TabBar = memo(({ workspace, noTabs }: TabBarProps) => {
     const osInstanceRef = useRef<OverlayScrollbars>(null);
     const draggerLeftRef = useRef<HTMLDivElement>(null);
     const rightContainerRef = useRef<HTMLDivElement>(null);
-    const workspaceSwitcherRef = useRef<HTMLDivElement>(null);
+    const newBlockButtonRef = useRef<HTMLDivElement>(null);
     const appMenuButtonRef = useRef<HTMLDivElement>(null);
     const tabWidthRef = useRef<number>(TabDefaultWidth);
     const scrollableRef = useRef<boolean>(false);
@@ -154,10 +153,10 @@ const TabBar = memo(({ workspace, noTabs }: TabBarProps) => {
         const rightContainerWidth = rightContainerRef.current?.getBoundingClientRect().width ?? 0;
         const addBtnWidth = getOuterWidth(addBtnRef.current);
         const appMenuButtonWidth = appMenuButtonRef.current?.getBoundingClientRect().width ?? 0;
-        const workspaceSwitcherWidth = workspaceSwitcherRef.current?.getBoundingClientRect().width ?? 0;
+        const newBlockButtonWidth = newBlockButtonRef.current?.getBoundingClientRect().width ?? 0;
 
         const nonTabElementsWidth =
-            windowDragLeftWidth + rightContainerWidth + addBtnWidth + appMenuButtonWidth + workspaceSwitcherWidth;
+            windowDragLeftWidth + rightContainerWidth + addBtnWidth + appMenuButtonWidth + newBlockButtonWidth;
         const spaceForTabs = tabbarWrapperWidth - nonTabElementsWidth;
 
         const numberOfTabs = tabIds.length;
@@ -563,15 +562,9 @@ const TabBar = memo(({ workspace, noTabs }: TabBarProps) => {
                     <i className="fa fa-ellipsis" />
                 </div>
             )}
-            <Tooltip
-                content="Workspace Switcher"
-                placement="bottom"
-                hideOnClick
-                divRef={workspaceSwitcherRef}
-                divClassName="flex items-center"
-            >
-                <WorkspaceSwitcher />
-            </Tooltip>
+            <div ref={newBlockButtonRef} className="flex items-end">
+                <NewBlockButton />
+            </div>
             <div className="tab-bar" ref={tabBarRef} data-overlayscrollbars-initialize>
                 <div
                     className="tabs-wrapper"

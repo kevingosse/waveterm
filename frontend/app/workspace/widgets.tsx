@@ -4,7 +4,7 @@
 
 import { Tooltip } from "@/app/element/tooltip";
 import { useWaveEnv, WaveEnv, WaveEnvSubset } from "@/app/waveenv/waveenv";
-import { shouldIncludeWidgetForWorkspace } from "@/app/workspace/widgetfilter";
+import { listWidgetsForWorkspace } from "@/app/workspace/widgetfilter";
 import { fireAndForget, isBlank, makeIconClass } from "@/util/util";
 import {
     autoUpdate,
@@ -29,17 +29,6 @@ export type WidgetsEnv = WaveEnvSubset<{
     createBlock: WaveEnv["createBlock"];
     showContextMenu: WaveEnv["showContextMenu"];
 }>;
-
-function sortByDisplayOrder(wmap: { [key: string]: WidgetConfigType }): WidgetConfigType[] {
-    if (wmap == null) {
-        return [];
-    }
-    const wlist = Object.values(wmap);
-    wlist.sort((a, b) => {
-        return (a["display:order"] ?? 0) - (b["display:order"] ?? 0);
-    });
-    return wlist;
-}
 
 type WidgetPropsType = {
     widget: WidgetConfigType;
@@ -204,11 +193,7 @@ const Widgets = memo(() => {
     const containerRef = useRef<HTMLDivElement>(null);
     const measurementRef = useRef<HTMLDivElement>(null);
 
-    const widgetsMap = fullConfig?.widgets ?? {};
-    const filteredWidgets = Object.fromEntries(
-        Object.entries(widgetsMap).filter(([_key, widget]) => shouldIncludeWidgetForWorkspace(widget, workspaceId))
-    );
-    const widgets = sortByDisplayOrder(filteredWidgets);
+    const widgets = listWidgetsForWorkspace(fullConfig?.widgets, workspaceId);
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const settingsButtonRef = useRef<HTMLDivElement>(null);

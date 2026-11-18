@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
-import { Tooltip } from "@/app/element/tooltip";
 import { getTabBadgeAtom } from "@/app/store/badge";
 import { getTabModelByTabId } from "@/app/store/tab-model";
 import { makeORef } from "@/app/store/wos";
@@ -12,10 +11,10 @@ import { validateCssColor } from "@/util/color-validator";
 import { cn, fireAndForget } from "@/util/util";
 import { useAtomValue } from "jotai";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { NewBlockButton } from "./newblockbutton";
 import { buildTabBarContextMenu, buildTabContextMenu } from "./tabcontextmenu";
 import { VTab, VTabItem } from "./vtab";
 import { VTabBarEnv } from "./vtabbarenv";
-import { WorkspaceSwitcher } from "./workspaceswitcher";
 export type { VTabItem } from "./vtab";
 
 const MacOSHeader = memo(() => {
@@ -38,9 +37,7 @@ const MacOSHeader = memo(() => {
                 className="flex shrink-0 flex-row flex-wrap items-end px-1 pb-1 pl-2"
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             >
-                <Tooltip content="Workspace Switcher" placement="bottom" hideOnClick divClassName="flex items-center">
-                    <WorkspaceSwitcher />
-                </Tooltip>
+                <NewBlockButton />
             </div>
         </>
     );
