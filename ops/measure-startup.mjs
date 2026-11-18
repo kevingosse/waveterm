@@ -55,6 +55,22 @@ function cdpEval(expression) {
     }).trim();
 }
 
+// The window is shown before its tab has loaded, and until then there is no tab to ask. Waiting here costs the
+// measurement nothing: the tab reports times it took itself.
+async function cdpEvalOnceTabIsUp(expression) {
+    const deadline = Date.now() + 30000;
+    for (;;) {
+        try {
+            return cdpEval(expression);
+        } catch (e) {
+            if (Date.now() > deadline || !String(e.stderr).includes("no visible app tab")) {
+                throw e;
+            }
+            await sleep(50);
+        }
+    }
+}
+
 function logLinesSince(offset) {
     if (!existsSync(logFile)) {
         return [];
@@ -183,7 +199,7 @@ async function launchOnce(run) {
         }
         result.windowMs = shown - launchedAt;
         if (measure) {
-            const prompt = JSON.parse(cdpEval(waitForPrompt(run)));
+            const prompt = JSON.parse(await cdpEvalOnceTabIsUp(waitForPrompt(run)));
             // the window is shown before its tab has loaded, so the tab reports in after the loop above has ended
             for (const line of logLinesSince(logOffset)) {
                 const tabInit = /tabview init (\d+)ms/.exec(line);
