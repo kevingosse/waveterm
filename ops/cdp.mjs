@@ -8,6 +8,11 @@
 //   node ops/cdp.mjs eval <target> <expression> [--port N]
 //   node ops/cdp.mjs screenshot <target> <file.png> [--port N]
 //   node ops/cdp.mjs key <target> <chord>... [--port N]       e.g. Ctrl+Shift+ArrowLeft
+//   node ops/cdp.mjs drag <target> <x,y> <x,y>... [--hold]    press at the first point, move through the others
+//   node ops/cdp.mjs mouse <target> <move|click|dblclick|up> <x,y>
+//
+// Points are in CSS pixels of the page, as getBoundingClientRect() gives them. `drag --hold` leaves the button down,
+// so that the app can be looked at in the middle of a drag; `mouse up` releases it.
 //
 // <target> is an index from `list`, or a substring of a target's title or url. "active" picks the app tab that is
 // currently showing. Expressions are awaited, and their JSON-serialisable result is printed.
@@ -150,6 +155,29 @@ function parseChord(chord) {
     throw new Error(`unknown key ${JSON.stringify(keyName)} in ${JSON.stringify(chord)}`);
 }
 
+function parsePoint(text) {
+    const match = /^(-?[\d.]+),(-?[\d.]+)$/.exec(text ?? "");
+    if (match == null) {
+        throw new Error(`expected a point as x,y but got ${JSON.stringify(text)}`);
+    }
+    return { x: Number(match[1]), y: Number(match[2]) };
+}
+
+function mouseEvent(client, type, point, pressed, clickCount = 0) {
+    const button = type === "mouseMoved" && !pressed ? "none" : "left";
+    return client.send("Input.dispatchMouseEvent", { type, ...point, button, buttons: pressed ? 1 : 0, clickCount });
+}
+
+// moves the pointer in small steps, as a hand would, so that the app sees the positions in between
+async function glide(client, from, to, pressed) {
+    const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / 15));
+    for (let step = 1; step <= steps; step++) {
+        const point = { x: from.x + ((to.x - from.x) * step) / steps, y: from.y + ((to.y - from.y) * step) / steps };
+        await mouseEvent(client, "mouseMoved", point, pressed);
+        await new Promise((resolve) => setTimeout(resolve, 8));
+    }
+}
+
 async function main() {
     if (command === "list") {
         const targets = await listTargets();
@@ -197,8 +225,56 @@ async function main() {
         }
         return;
     }
+    if (command === "drag") {
+        const holdIdx = rest.indexOf("--hold");
+        if (holdIdx >= 0) {
+            rest.splice(holdIdx, 1);
+        }
+        const [spec, ...pointArgs] = rest;
+        const points = pointArgs.map(parsePoint);
+        if (points.length < 2) {
+            throw new Error("drag needs at least two points");
+        }
+        const client = await connect(await pickTarget(spec));
+        try {
+            await mouseEvent(client, "mouseMoved", points[0], false);
+            await mouseEvent(client, "mousePressed", points[0], true, 1);
+            for (let idx = 1; idx < points.length; idx++) {
+                await glide(client, points[idx - 1], points[idx], true);
+            }
+            if (holdIdx < 0) {
+                await mouseEvent(client, "mouseReleased", points.at(-1), false, 1);
+            }
+        } finally {
+            client.close();
+        }
+        return;
+    }
+    if (command === "mouse") {
+        const [spec, action, pointArg] = rest;
+        const point = parsePoint(pointArg);
+        const client = await connect(await pickTarget(spec));
+        try {
+            if (action === "move") {
+                await mouseEvent(client, "mouseMoved", point, false);
+            } else if (action === "up") {
+                await mouseEvent(client, "mouseReleased", point, false, 1);
+            } else if (action === "click" || action === "dblclick") {
+                await mouseEvent(client, "mouseMoved", point, false);
+                for (let count = 1; count <= (action === "click" ? 1 : 2); count++) {
+                    await mouseEvent(client, "mousePressed", point, true, count);
+                    await mouseEvent(client, "mouseReleased", point, false, count);
+                }
+            } else {
+                throw new Error(`unknown mouse action ${JSON.stringify(action)}`);
+            }
+        } finally {
+            client.close();
+        }
+        return;
+    }
     console.error(
-        "usage: node ops/cdp.mjs list | eval <target> <expression> | screenshot <target> <file.png> | key <target> <chord>...  [--port N]"
+        "usage: node ops/cdp.mjs list | eval <target> <expression> | screenshot <target> <file.png> | key <target> <chord>... | drag <target> <x,y> <x,y>... [--hold] | mouse <target> <move|click|dblclick|up> <x,y>  [--port N]"
     );
     process.exitCode = 2;
 }

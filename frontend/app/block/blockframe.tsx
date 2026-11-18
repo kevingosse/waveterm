@@ -105,6 +105,7 @@ const BlockFrame_Default_Component = (props: BlockFrameProps) => {
     const connModalOpen = jotai.useAtomValue(changeConnModalAtom);
     const isMagnified = jotai.useAtomValue(nodeModel.isMagnified);
     const isEphemeral = jotai.useAtomValue(nodeModel.isEphemeral);
+    const isFloating = jotai.useAtomValue(nodeModel.isFloating);
     const [magnifiedBlockBlurAtom] = React.useState(() =>
         waveEnv.getSettingsKeyAtom("window:magnifiedblockblurprimarypx")
     );
@@ -172,6 +173,7 @@ const BlockFrame_Default_Component = (props: BlockFrameProps) => {
                 "block-no-highlight": numBlocksInTab === 1,
                 ephemeral: isEphemeral,
                 magnified: isMagnified,
+                floating: isFloating,
             })}
             data-blockid={nodeModel.blockId}
             onClick={blockModel?.onClick}

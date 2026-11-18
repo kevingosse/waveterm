@@ -10,6 +10,29 @@ import { Atom, atom, Getter, PrimitiveAtom, Setter } from "jotai";
 import { splitAtom } from "jotai/utils";
 import { createRef, CSSProperties } from "react";
 import { debounce } from "throttle-debounce";
+import {
+    Box,
+    BoxEdges,
+    collectSnapLines,
+    findFreeRect,
+    findLinkedBoxes,
+    followResize,
+    isFullRect,
+    keepReachable,
+    LinkedBox,
+    placeNewFloat,
+    resizeBox,
+    resizeLimits,
+    SnapLines,
+    snapMove,
+    SnapZone,
+    splitRect,
+    TilesBoxId,
+    toFractions,
+    toPixels,
+    zoneAtPoint,
+    zoneRect,
+} from "./floating";
 import { getLayoutStateAtomFromTab } from "./layoutAtom";
 import { balanceNode, findNode, newLayoutNode, walkNodes } from "./layoutNode";
 import {
@@ -28,8 +51,11 @@ import {
     swapNode,
 } from "./layoutTree";
 import {
+    BoxFrameProps,
     ContentRenderer,
+    DefaultNodeSize,
     FlexDirection,
+    FloatingNode,
     LayoutNode,
     LayoutNodeAdditionalProps,
     LayoutTreeAction,
@@ -69,9 +95,41 @@ interface ResizeContext {
     afterNodeStartSize: number;
 }
 
+/**
+ * A floating block, or the area the tiles fill, while it is being moved or resized with the pointer.
+ */
+interface BoxDragContext {
+    boxId: string;
+    mode: "move" | "resize";
+    edges: BoxEdges;
+    startPointer: Point;
+    startRect: Dimensions;
+    container: Dimensions;
+    /**
+     * Where the layout container is in the window, to turn pointer positions into positions inside it.
+     */
+    containerOrigin: Point;
+    linked: LinkedBox[];
+    lines: SnapLines;
+    /**
+     * The rectangles of the other boxes, for the zones a moved block can be dropped into.
+     */
+    obstacles: Dimensions[];
+    zone?: SnapZone;
+    /**
+     * The rectangles the boxes have while the drag lasts, in CSS pixels. They are stored when it ends.
+     */
+    pending: Map<string, Dimensions>;
+}
+
 const DefaultGapSizePx = 3;
 const MinNodeSizePx = 40;
 const DefaultAnimationTimeS = 0.15;
+// Floating blocks are stacked from here up, two steps apart: one for the block, one for its resize handles. The
+// values below this one and the ones from 1000 up belong to the tiles and to magnified blocks, see theme.scss.
+const FloatZIndexBase = 10;
+// the size of the container to assume while it is not on screen, as when a tab is loaded in the background
+const NominalContainerRect: Dimensions = { left: 0, top: 0, width: 1600, height: 900 };
 
 export class LayoutModel {
     /**
@@ -237,6 +295,28 @@ export class LayoutModel {
      */
     private isContainerResizing: PrimitiveAtom<boolean>;
 
+    /**
+     * The boxes that are resized by their own edges: the area the tiles fill, and each floating block.
+     */
+    boxFrames: PrimitiveAtom<BoxFrameProps[]>;
+    /**
+     * The ids of the floating nodes.
+     */
+    floatingNodeIds: Atom<Set<string>>;
+    /**
+     * Where a floating block will go if it is dropped now, when that is not where it is shown.
+     */
+    snapPreview: PrimitiveAtom<Dimensions>;
+    /**
+     * True while a box is being moved or resized with the pointer.
+     */
+    boxDragActive: PrimitiveAtom<boolean>;
+    private boxDrag?: BoxDragContext;
+    /**
+     * Blocks should not take pointer events while something is being dragged over them.
+     */
+    private disablePointerEvents: Atom<boolean>;
+
     constructor(
         tabAtom: Atom<Tab>,
         getter: Getter,
@@ -295,14 +375,24 @@ export class LayoutModel {
         });
         this.resizeHandles = splitAtom(resizeHandleListAtom);
         this.isContainerResizing = atom(false);
+        this.boxFrames = atom([]) as PrimitiveAtom<BoxFrameProps[]>;
+        this.snapPreview = atom(null) as PrimitiveAtom<Dimensions>;
+        this.boxDragActive = atom(false);
         this.isResizing = atom((get) => {
             const pendingAction = get(this.pendingTreeAction.throttledValueAtom);
             const isWindowResizing = get(this.isContainerResizing);
-            return isWindowResizing || pendingAction?.type === LayoutTreeActionType.ResizeNode;
+            return (
+                isWindowResizing || get(this.boxDragActive) || pendingAction?.type === LayoutTreeActionType.ResizeNode
+            );
+        });
+        this.floatingNodeIds = atom((get) => {
+            const treeState = get(this.localTreeStateAtom);
+            return new Set((treeState.floatingNodes ?? []).map((float) => float.node.id));
         });
 
         this.displayContainerRef = createRef();
         this.activeDrag = atom(false);
+        this.disablePointerEvents = atom((get) => get(this.activeDrag) || get(this.boxDragActive));
         this.showOverlay = atom(false);
         this.ready = atom(false);
         this.overlayTransform = atom<CSSProperties>((get) => {
@@ -341,7 +431,10 @@ export class LayoutModel {
             if (treeState.focusedNodeId == null) {
                 return null;
             }
-            return findNode(treeState.rootNode, treeState.focusedNodeId);
+            return (
+                findNode(treeState.rootNode, treeState.focusedNodeId) ??
+                treeState.floatingNodes?.find((float) => float.node.id === treeState.focusedNodeId)?.node
+            );
         });
         this.focusedNodeIdStack = [];
 
@@ -359,6 +452,17 @@ export class LayoutModel {
 
         const initialState: LayoutTreeState = {
             rootNode: waveObjState?.rootnode,
+            floatingNodes: (waveObjState?.floatingnodes ?? []).map((float) => ({
+                node: {
+                    id: float.nodeid,
+                    data: { blockId: float.blockid },
+                    flexDirection: FlexDirection.Row,
+                    size: DefaultNodeSize,
+                },
+                rect: float.rect,
+            })),
+            tileRect: waveObjState?.tilerect,
+            lastFloatRect: waveObjState?.lastfloatrect,
             focusedNodeId: waveObjState?.focusednodeid,
             magnifiedNodeId: waveObjState?.magnifiednodeid,
             leafOrder: undefined,
@@ -411,8 +515,9 @@ export class LayoutModel {
     private async cleanupOrphanedBlocks() {
         const tab = this.getter(this.tabAtom);
         const layoutBlockIds = new Set<string>();
+        const floats = this.treeState.floatingNodes ?? [];
 
-        if (this.treeState.rootNode == null) {
+        if (this.treeState.rootNode == null && floats.length == 0) {
             return;
         }
 
@@ -421,6 +526,10 @@ export class LayoutModel {
                 layoutBlockIds.add(node.data.blockId);
             }
         });
+        // a floating block is not in the tree, and is not an orphan for that
+        for (const float of floats) {
+            layoutBlockIds.add(float.node.data.blockId);
+        }
 
         for (const blockId of tab.blockids || []) {
             if (!layoutBlockIds.has(blockId)) {
@@ -439,11 +548,18 @@ export class LayoutModel {
                     this.newEphemeralNode(action.blockid);
                     break;
                 }
+                const newNode = newLayoutNode(undefined, undefined, undefined, {
+                    blockId: action.blockid,
+                });
+                // A block that was not asked for from the layout itself (wsh view, wsh edit, wsh web open ...)
+                // must not rearrange what is there: it floats, in the empty space if there is some.
+                if (!action.magnified && this.hasNodes()) {
+                    this.addFloatingNode(newNode, this.placeFloatingRect(), action.focused);
+                    break;
+                }
                 const insertNodeAction: LayoutTreeInsertNodeAction = {
                     type: LayoutTreeActionType.InsertNode,
-                    node: newLayoutNode(undefined, undefined, undefined, {
-                        blockId: action.blockid,
-                    }),
+                    node: newNode,
                     magnified: action.magnified,
                     focused: action.focused,
                 };
@@ -583,6 +699,13 @@ export class LayoutModel {
             if (!waveObj) return;
 
             waveObj.rootnode = this.treeState.rootNode;
+            waveObj.floatingnodes = (this.treeState.floatingNodes ?? []).map((float) => ({
+                nodeid: float.node.id,
+                blockid: float.node.data.blockId,
+                rect: float.rect,
+            }));
+            waveObj.tilerect = this.treeState.tileRect;
+            waveObj.lastfloatrect = this.treeState.lastFloatRect;
             waveObj.focusednodeid = this.treeState.focusedNodeId;
             waveObj.magnifiednodeid = this.treeState.magnifiedNodeId;
             waveObj.leaforder = this.treeState.leafOrder;
@@ -613,6 +736,33 @@ export class LayoutModel {
      * @param action The action to perform.
      */
     treeReducer(action: LayoutTreeAction, setState = true) {
+        if (!this.reduceFloatingAction(action)) {
+            this.reduceTreeAction(action);
+        }
+        if (this.treeState.rootNode == null) {
+            // with no tiles left there is no area for them to keep
+            this.treeState.tileRect = undefined;
+        }
+        if (this.magnifiedNodeId !== this.treeState.magnifiedNodeId) {
+            this.lastMagnifiedNodeId = this.magnifiedNodeId;
+            this.lastEphemeralNodeId = undefined;
+            this.magnifiedNodeId = this.treeState.magnifiedNodeId;
+        }
+        if (setState) {
+            this.commitTreeState();
+        }
+    }
+
+    /**
+     * Recompute the layout from the tree state, publish it and save it.
+     */
+    private commitTreeState() {
+        this.updateTree();
+        this.setter(this.localTreeStateAtom, { ...this.treeState });
+        this.persistToBackend();
+    }
+
+    private reduceTreeAction(action: LayoutTreeAction) {
         switch (action.type) {
             case LayoutTreeActionType.ComputeMove:
                 this.setter(
@@ -681,15 +831,92 @@ export class LayoutModel {
             default:
                 console.error("Invalid reducer action", this.treeState, action);
         }
-        if (this.magnifiedNodeId !== this.treeState.magnifiedNodeId) {
-            this.lastMagnifiedNodeId = this.magnifiedNodeId;
-            this.lastEphemeralNodeId = undefined;
-            this.magnifiedNodeId = this.treeState.magnifiedNodeId;
-        }
-        if (setState) {
-            this.updateTree();
-            this.setter(this.localTreeStateAtom, { ...this.treeState });
-            this.persistToBackend();
+    }
+
+    /**
+     * Handles the actions that concern a floating block, or that should produce one.
+     * @returns Whether the action was handled, in which case it must not be applied to the tree.
+     */
+    private reduceFloatingAction(action: LayoutTreeAction): boolean {
+        switch (action.type) {
+            case LayoutTreeActionType.InsertNode: {
+                // A new block goes into empty space when there is some, instead of making the tiles smaller.
+                const insertAction = action as LayoutTreeInsertNodeAction;
+                if (insertAction.magnified || !insertAction.node || !this.hasNodes()) {
+                    return false;
+                }
+                const freeRect = findFreeRect(this.getContainerRect(), this.getObstacles());
+                if (freeRect == null) {
+                    return false;
+                }
+                this.addFloatingNode(insertAction.node, freeRect, insertAction.focused);
+                return true;
+            }
+            case LayoutTreeActionType.DeleteNode: {
+                const nodeId = (action as LayoutTreeDeleteNodeAction).nodeId;
+                const float = this.getFloatingNode(nodeId);
+                if (!float) {
+                    return false;
+                }
+                this.treeState.floatingNodes = this.treeState.floatingNodes.filter((f) => f !== float);
+                this.treeState.lastFloatRect = float.rect;
+                if (this.treeState.focusedNodeId === nodeId) {
+                    this.treeState.focusedNodeId = undefined;
+                }
+                return true;
+            }
+            case LayoutTreeActionType.SplitHorizontal:
+            case LayoutTreeActionType.SplitVertical: {
+                const splitAction = action as LayoutTreeSplitHorizontalAction | LayoutTreeSplitVerticalAction;
+                const float = this.getFloatingNode(splitAction.targetNodeId);
+                if (!float) {
+                    return false;
+                }
+                const direction = action.type === LayoutTreeActionType.SplitHorizontal ? "row" : "column";
+                const container = this.getContainerRect();
+                const { kept, added } = splitRect(toPixels(float.rect, container), direction, splitAction.position);
+                float.rect = toFractions(kept, container);
+                this.treeState.floatingNodes = [
+                    ...this.treeState.floatingNodes,
+                    { node: splitAction.newNode, rect: toFractions(added, container) },
+                ];
+                if (splitAction.focused) {
+                    this.treeState.focusedNodeId = splitAction.newNode.id;
+                }
+                return true;
+            }
+            case LayoutTreeActionType.ReplaceNode: {
+                const replaceAction = action as LayoutTreeReplaceNodeAction;
+                const float = this.getFloatingNode(replaceAction.targetNodeId);
+                if (!float) {
+                    return false;
+                }
+                float.node = replaceAction.newNode;
+                if (replaceAction.focused) {
+                    this.treeState.focusedNodeId = replaceAction.newNode.id;
+                }
+                return true;
+            }
+            case LayoutTreeActionType.MagnifyNodeToggle: {
+                const nodeId = (action as LayoutTreeMagnifyNodeToggleAction).nodeId;
+                if (!this.getFloatingNode(nodeId)) {
+                    return false;
+                }
+                if (this.treeState.magnifiedNodeId === nodeId) {
+                    this.treeState.magnifiedNodeId = undefined;
+                } else {
+                    this.treeState.magnifiedNodeId = nodeId;
+                    this.treeState.focusedNodeId = nodeId;
+                }
+                return true;
+            }
+            case LayoutTreeActionType.ClearTree:
+                this.treeState.floatingNodes = [];
+                this.treeState.tileRect = undefined;
+                this.treeState.lastFloatRect = undefined;
+                return false;
+            default:
+                return false;
         }
     }
 
@@ -726,8 +953,25 @@ export class LayoutModel {
             const resizeHandleSizePx = this.getter(this.resizeHandleSizePx);
 
             const boundingRect = this.getBoundingRect();
+            const tileRect = this.getTileRectPx(boundingRect);
+            const floats = this.treeState.floatingNodes ?? [];
 
             const magnifiedNodeSize = this.getter(this.magnifiedNodeSizeAtom);
+
+            // A block that is alone in the layout cannot be magnified. This has to be settled before the walk, which
+            // is where the magnified block gets its place.
+            if (this.magnifiedNodeId != null && this.countLeafs() <= 1) {
+                this.treeState.magnifiedNodeId = undefined;
+                this.magnifiedNodeId = undefined;
+            }
+
+            // A tile that is alone has no parent to give it a rectangle, and is sized by CSS to fill the container.
+            // That is not enough once the tiles do not fill the container, or once floating blocks have to be
+            // placed relative to it.
+            const rootNode = this.treeState.rootNode;
+            if (rootNode != null && !rootNode.children && (floats.length > 0 || this.hasTileRect())) {
+                newAdditionalProps[rootNode.id] = { treeKey: "0", rect: tileRect, transform: setTransform(tileRect) };
+            }
 
             const callback = (node: LayoutNode) =>
                 this.updateTreeHelper(
@@ -737,10 +981,43 @@ export class LayoutModel {
                     resizeHandleSizePx,
                     magnifiedNodeSize,
                     boundingRect,
+                    tileRect,
                     resizeAction
                 );
             if (balanceTree) this.treeState.rootNode = balanceNode(this.treeState.rootNode, callback);
             else walkNodes(this.treeState.rootNode, callback);
+
+            const boxFrames: BoxFrameProps[] = [];
+            if (this.treeState.rootNode != null) {
+                boxFrames.push({
+                    id: TilesBoxId,
+                    floating: false,
+                    rect: tileRect,
+                    zIndex: "var(--zindex-layout-resize-handle)",
+                });
+            }
+            floats.forEach((float, idx) => {
+                const nodeId = float.node.id;
+                const rect = this.boxDrag?.pending.get(nodeId) ?? toPixels(float.rect, boundingRect);
+                const zIndex = FloatZIndexBase + 2 * idx;
+                newAdditionalProps[nodeId] = {
+                    // after every tile, which all have a key that starts with 0
+                    treeKey: "1" + String(idx).padStart(3, "0"),
+                    rect,
+                    transform:
+                        this.magnifiedNodeId === nodeId
+                            ? this.getMagnifiedTransform(boundingRect, magnifiedNodeSize)
+                            : setTransform(rect, true, true, zIndex),
+                };
+                newLeafs.push(float.node);
+                boxFrames.push({ id: nodeId, floating: true, rect, zIndex: zIndex + 1 });
+            });
+            // In an order that does not depend on the stacking, like the leafs below: an element that React moves
+            // in the DOM loses the pointer it has captured, and a block is brought to the front as its drag begins.
+            this.setter(
+                this.boxFrames,
+                boxFrames.sort((a, b) => a.id.localeCompare(b.id))
+            );
 
             // Process ephemeral node, if present.
             const ephemeralNode = this.getter(this.ephemeralNode);
@@ -781,6 +1058,7 @@ export class LayoutModel {
         resizeHandleSizePx: number,
         magnifiedNodeSizePct: number,
         boundingRect: Dimensions,
+        tileRect: Dimensions,
         resizeAction?: LayoutTreeResizeNodeAction
     ) {
         if (!node.children?.length) {
@@ -788,19 +1066,7 @@ export class LayoutModel {
             const addlProps = additionalPropsMap[node.id];
             if (addlProps) {
                 if (this.magnifiedNodeId === node.id) {
-                    const magnifiedNodeMarginPct = (1 - magnifiedNodeSizePct) / 2;
-                    const transform = setTransform(
-                        {
-                            top: boundingRect.height * magnifiedNodeMarginPct,
-                            left: boundingRect.width * magnifiedNodeMarginPct,
-                            width: boundingRect.width * magnifiedNodeSizePct,
-                            height: boundingRect.height * magnifiedNodeSizePct,
-                        },
-                        true,
-                        true,
-                        "var(--zindex-layout-magnified-node)"
-                    );
-                    addlProps.transform = transform;
+                    addlProps.transform = this.getMagnifiedTransform(boundingRect, magnifiedNodeSizePct);
                 }
                 if (this.lastMagnifiedNodeId === node.id) {
                     addlProps.transform.zIndex = "var(--zindex-layout-last-magnified-node)";
@@ -815,11 +1081,10 @@ export class LayoutModel {
             return resizeAction?.resizeOperations.find((op) => op.nodeId === node.id)?.size ?? node.size;
         }
 
-        const additionalProps: LayoutNodeAdditionalProps = node.id in additionalPropsMap
-            ? additionalPropsMap[node.id]
-            : { treeKey: "0" };
+        const additionalProps: LayoutNodeAdditionalProps =
+            node.id in additionalPropsMap ? additionalPropsMap[node.id] : { treeKey: "0" };
 
-        const nodeRect: Dimensions = node.id === this.treeState.rootNode.id ? boundingRect : additionalProps.rect;
+        const nodeRect: Dimensions = node.id === this.treeState.rootNode.id ? tileRect : additionalProps.rect;
         const nodeIsRow = node.flexDirection === FlexDirection.Row;
         const nodePixels = nodeIsRow ? nodeRect.width : nodeRect.height;
         const totalChildrenSize = node.children.reduce((acc, child) => acc + getNodeSize(child), 0);
@@ -887,6 +1152,310 @@ export class LayoutModel {
     };
 
     /**
+     * The dimensions of the TileLayout container, for code that may run while it is not on screen.
+     */
+    private getContainerRect(): Dimensions {
+        const boundingRect = this.displayContainerRef.current?.getBoundingClientRect();
+        if (boundingRect == null || boundingRect.width < 1 || boundingRect.height < 1) {
+            return NominalContainerRect;
+        }
+        return { top: 0, left: 0, width: boundingRect.width, height: boundingRect.height };
+    }
+
+    private hasTileRect(): boolean {
+        return !isFullRect(this.treeState.tileRect);
+    }
+
+    /**
+     * The area the tiles fill, in CSS pixels.
+     * @param container The dimensions of the TileLayout container.
+     */
+    private getTileRectPx(container: Dimensions): Dimensions {
+        const pending = this.boxDrag?.pending.get(TilesBoxId);
+        if (pending != null) {
+            return pending;
+        }
+        if (!this.hasTileRect()) {
+            return container;
+        }
+        return toPixels(this.treeState.tileRect, container);
+    }
+
+    private getMagnifiedTransform(boundingRect: Dimensions, magnifiedNodeSizePct: number): CSSProperties {
+        const magnifiedNodeMarginPct = (1 - magnifiedNodeSizePct) / 2;
+        return setTransform(
+            {
+                top: boundingRect.height * magnifiedNodeMarginPct,
+                left: boundingRect.width * magnifiedNodeMarginPct,
+                width: boundingRect.width * magnifiedNodeSizePct,
+                height: boundingRect.height * magnifiedNodeSizePct,
+            },
+            true,
+            true,
+            "var(--zindex-layout-magnified-node)"
+        );
+    }
+
+    private getFloatingNode(nodeId: string): FloatingNode {
+        return this.treeState.floatingNodes?.find((float) => float.node.id === nodeId);
+    }
+
+    /**
+     * Whether the layout holds any block, tiled or floating.
+     */
+    private hasNodes(): boolean {
+        return this.treeState.rootNode != null || (this.treeState.floatingNodes?.length ?? 0) > 0;
+    }
+
+    private countLeafs(): number {
+        let count = this.treeState.floatingNodes?.length ?? 0;
+        walkNodes(this.treeState.rootNode, (node) => {
+            if (!node.children?.length) {
+                count++;
+            }
+        });
+        if (this.getter(this.ephemeralNode)) {
+            count++;
+        }
+        return count;
+    }
+
+    /**
+     * The boxes that can be moved or resized freely: the area the tiles fill, if there are tiles, and the floating
+     * blocks.
+     */
+    private getBoxes(container: Dimensions): Box[] {
+        const boxes: Box[] = [];
+        if (this.treeState.rootNode != null) {
+            boxes.push({ id: TilesBoxId, rect: this.getTileRectPx(container) });
+        }
+        for (const float of this.treeState.floatingNodes ?? []) {
+            boxes.push({ id: float.node.id, rect: toPixels(float.rect, container) });
+        }
+        return boxes;
+    }
+
+    /**
+     * Everything that takes up space in the container, in CSS pixels.
+     */
+    private getObstacles(): Dimensions[] {
+        return this.getBoxes(this.getContainerRect()).map((box) => box.rect);
+    }
+
+    /**
+     * Where a new floating block should open, in CSS pixels.
+     */
+    private placeFloatingRect(): Dimensions {
+        const container = this.getContainerRect();
+        const floatingNodes = this.treeState.floatingNodes ?? [];
+        const lastRect = this.treeState.lastFloatRect;
+        // The block that has the focus is most likely the terminal that asked for the new one, to be read beside it.
+        const stackOn = floatingNodes.filter((float) => float.node.id !== this.treeState.focusedNodeId).at(-1);
+        return placeNewFloat(
+            container,
+            this.getObstacles(),
+            floatingNodes.map((float) => toPixels(float.rect, container)),
+            lastRect != null ? toPixels(lastRect, container) : undefined,
+            stackOn != null ? toPixels(stackOn.rect, container) : undefined
+        );
+    }
+
+    /**
+     * Adds a node to the layout as a floating block, on top of the others.
+     * @param node The leaf to add.
+     * @param rect Where to put it, in CSS pixels.
+     * @param focused Whether it should take the focus.
+     */
+    private addFloatingNode(node: LayoutNode, rect: Dimensions, focused: boolean) {
+        this.treeState.floatingNodes = [
+            ...(this.treeState.floatingNodes ?? []),
+            { node, rect: toFractions(rect, this.getContainerRect()) },
+        ];
+        if (focused) {
+            this.treeState.focusedNodeId = node.id;
+        }
+    }
+
+    /**
+     * Puts a floating node on top of the others.
+     * @returns Whether the order changed.
+     */
+    private raiseFloatingNode(nodeId: string): boolean {
+        const floats = this.treeState.floatingNodes;
+        const float = this.getFloatingNode(nodeId);
+        if (!float || floats.at(-1) === float) {
+            return false;
+        }
+        this.treeState.floatingNodes = [...floats.filter((f) => f !== float), float];
+        return true;
+    }
+
+    /**
+     * Takes a tile out of the tiled layout and lets it float where it was, or puts a floating block among the tiles.
+     */
+    toggleFloating(nodeId: string) {
+        const float = this.getFloatingNode(nodeId);
+        if (float) {
+            this.treeState.floatingNodes = this.treeState.floatingNodes.filter((f) => f !== float);
+            if (this.treeState.rootNode == null) {
+                // the first tile stays where it was as a floating block, instead of spreading under the others
+                this.treeState.tileRect = isFullRect(float.rect) ? undefined : float.rect;
+            }
+            insertNode(this.treeState, {
+                type: LayoutTreeActionType.InsertNode,
+                node: float.node,
+                magnified: false,
+                focused: true,
+            });
+            this.commitTreeState();
+            return;
+        }
+        const node = findNode(this.treeState.rootNode, nodeId);
+        if (!node || node.children) {
+            return;
+        }
+        if (this.magnifiedNodeId === nodeId) {
+            this.magnifyNodeToggle(nodeId, false);
+        }
+        const container = this.getContainerRect();
+        const rect = this.getNodeRectById(nodeId) ?? this.getTileRectPx(container);
+        deleteNode(this.treeState, { type: LayoutTreeActionType.DeleteNode, nodeId });
+        if (this.treeState.rootNode == null) {
+            this.treeState.tileRect = undefined;
+        }
+        this.addFloatingNode(node, rect, true);
+        this.commitTreeState();
+    }
+
+    /**
+     * Lets the tiles fill the whole container again.
+     */
+    resetTileRect() {
+        if (!this.hasTileRect()) {
+            return;
+        }
+        this.treeState.tileRect = undefined;
+        this.commitTreeState();
+    }
+
+    /**
+     * Begins moving or resizing a floating block, or resizing the area the tiles fill.
+     * @param boxId The id of the floating node, or TilesBoxId.
+     * @param mode Whether the box is moved as a whole or resized by the given edges.
+     * @param edges The edges that follow the pointer when resizing.
+     * @param x The X coordinate of the pointer where the drag began, in CSS pixels relative to the window.
+     * @param y The Y coordinate of the pointer where the drag began, in CSS pixels relative to the window.
+     */
+    startBoxDrag(boxId: string, mode: "move" | "resize", edges: BoxEdges, x: number, y: number) {
+        const containerElem = this.displayContainerRef.current;
+        if (!containerElem) {
+            return;
+        }
+        const clientRect = containerElem.getBoundingClientRect();
+        const container = this.getContainerRect();
+        const boxes = this.getBoxes(container);
+        const box = boxes.find((b) => b.id === boxId);
+        if (!box) {
+            return;
+        }
+        if (boxId !== TilesBoxId) {
+            // this also brings it to the front
+            this.focusNode(boxId);
+        }
+        const others = boxes.filter((b) => b.id !== boxId);
+        const linked = mode === "resize" ? findLinkedBoxes(box, edges, others) : [];
+        const lineRects = others.filter((b) => !linked.some((link) => link.id === b.id)).map((b) => b.rect);
+        if (boxId !== TilesBoxId) {
+            // a floating block can also be lined up with single tiles, to cover one exactly
+            const floatingIds = this.getter(this.floatingNodeIds);
+            for (const leaf of this.getter(this.leafs)) {
+                const leafRect = this.getNodeRectById(leaf.id);
+                if (leafRect != null && !floatingIds.has(leaf.id)) {
+                    lineRects.push(leafRect);
+                }
+            }
+        }
+        this.boxDrag = {
+            boxId,
+            mode,
+            edges,
+            startPointer: { x, y },
+            startRect: box.rect,
+            container,
+            containerOrigin: { x: clientRect.left, y: clientRect.top },
+            linked,
+            lines: collectSnapLines(container, lineRects),
+            obstacles: others.map((b) => b.rect),
+            pending: new Map(),
+        };
+        this.setter(this.boxDragActive, true);
+    }
+
+    /**
+     * Continues the drag begun with startBoxDrag.
+     * @param x The X coordinate of the pointer, in CSS pixels relative to the window.
+     * @param y The Y coordinate of the pointer, in CSS pixels relative to the window.
+     */
+    moveBoxDrag(x: number, y: number) {
+        const drag = this.boxDrag;
+        if (!drag) {
+            return;
+        }
+        const dx = x - drag.startPointer.x;
+        const dy = y - drag.startPointer.y;
+        drag.pending.clear();
+        if (drag.mode === "move") {
+            const moved = { ...drag.startRect, left: drag.startRect.left + dx, top: drag.startRect.top + dy };
+            drag.pending.set(drag.boxId, keepReachable(snapMove(moved, drag.lines), drag.container));
+            drag.zone = zoneAtPoint({ x: x - drag.containerOrigin.x, y: y - drag.containerOrigin.y }, drag.container);
+            this.setter(
+                this.snapPreview,
+                drag.zone != null ? zoneRect(drag.zone, drag.container, drag.obstacles) : null
+            );
+        } else {
+            const limits = resizeLimits(drag.container, drag.linked);
+            const resized = resizeBox(drag.startRect, drag.edges, dx, dy, drag.lines, limits);
+            drag.pending.set(drag.boxId, resized);
+            for (const link of drag.linked) {
+                drag.pending.set(link.id, followResize(link, resized));
+            }
+        }
+        this.updateTree(false);
+    }
+
+    /**
+     * Ends the drag begun with startBoxDrag, and keeps what it did unless it was cancelled.
+     */
+    endBoxDrag(cancel = false) {
+        const drag = this.boxDrag;
+        if (!drag) {
+            return;
+        }
+        this.boxDrag = undefined;
+        this.setter(this.boxDragActive, false);
+        this.setter(this.snapPreview, null);
+        if (cancel) {
+            this.updateTree(false);
+            return;
+        }
+        if (drag.mode === "move" && drag.zone != null) {
+            drag.pending.set(drag.boxId, zoneRect(drag.zone, drag.container, drag.obstacles));
+        }
+        for (const [boxId, rect] of drag.pending) {
+            const fractions = toFractions(rect, drag.container);
+            if (boxId === TilesBoxId) {
+                this.treeState.tileRect = isFullRect(fractions) ? undefined : fractions;
+                continue;
+            }
+            const float = this.getFloatingNode(boxId);
+            if (float) {
+                float.rect = fractions;
+            }
+        }
+        this.commitTreeState();
+    }
+
+    /**
      * The id of the focused node in the layout.
      */
     get focusedNodeId(): string {
@@ -898,7 +1467,14 @@ export class LayoutModel {
      * @param leafOrder The new leaf order array to use when searching for stale nodes in the stack.
      */
     private validateFocusedNode(leafOrder: LeafOrderEntry[]) {
-        if (this.treeState.focusedNodeId !== this.focusedNodeId) {
+        // The last tile can be closed while floating blocks remain, and the tree does not clear the focus when its
+        // root goes.
+        const focusedNodeId = this.treeState.focusedNodeId;
+        if (focusedNodeId != null && !leafOrder.some((leafEntry) => leafEntry.nodeid === focusedNodeId)) {
+            this.treeState.focusedNodeId = undefined;
+        }
+        const nothingFocused = this.treeState.focusedNodeId == null && leafOrder.length > 0;
+        if (this.treeState.focusedNodeId !== this.focusedNodeId || nothingFocused) {
             // Remove duplicates and stale entries from focus stack.
             const newFocusedNodeIdStack: string[] = [];
             for (const id of this.focusedNodeIdStack) {
@@ -931,7 +1507,11 @@ export class LayoutModel {
             this.treeState.magnifiedNodeId = undefined;
             this.magnifiedNodeId = undefined;
 
-            // Unset the transform for the sole leaf.
+            // Unset the transform for the sole leaf, so that CSS sizes it to the container. Not when it has a
+            // rectangle of its own to keep: a floating block, or a tile in an area that is not the whole container.
+            if (this.getFloatingNode(lastLeafId) || this.hasTileRect() || this.boxDrag != null) {
+                return;
+            }
             if (lastLeafId in addlProps) addlProps[lastLeafId].transform = undefined;
         }
     }
@@ -1072,12 +1652,14 @@ export class LayoutModel {
                     const ephemeralNode = get(this.ephemeralNode);
                     return ephemeralNode?.id === nodeid;
                 }),
+                isFloating: atom((get) => get(this.floatingNodeIds).has(nodeid)),
                 addEphemeralNodeToLayout: () => this.addEphemeralNodeToLayout(),
                 animationTimeS: this.animationTimeS,
                 ready: this.ready,
-                disablePointerEvents: this.activeDrag,
+                disablePointerEvents: this.disablePointerEvents,
                 onClose: () => fireAndForget(() => this.closeNode(nodeid)), // no longer used (instead we use keymodel uxCloseBlock)
                 toggleMagnify: () => this.magnifyNodeToggle(nodeid),
+                toggleFloating: () => this.toggleFloating(nodeid),
                 focusNode: () => this.focusNode(nodeid),
                 dragHandleRef: createRef(),
                 displayContainerRef: this.displayContainerRef,
@@ -1115,8 +1697,11 @@ export class LayoutModel {
 
         const offset = navigateDirectionToOffset(direction);
         const nodePositions: Map<string, Dimensions> = new Map();
-        const leafs = this.getter(this.leafs);
         const addlProps = this.getter(this.additionalProps);
+        // Where blocks overlap, the search below finds the first one in this list: the topmost floating block
+        // first, and the tiles last.
+        const floatingNodes = [...(this.treeState.floatingNodes ?? [])].reverse().map((float) => float.node);
+        const leafs = [...floatingNodes, ...this.getter(this.leafs).filter((leaf) => !floatingNodes.includes(leaf))];
         for (const leaf of leafs) {
             const pos = addlProps[leaf.id]?.rect;
             if (pos) {
@@ -1199,8 +1784,15 @@ export class LayoutModel {
      * @param nodeId The id of the node that is being focused.
      */
     focusNode(nodeId: string) {
-        if (this.focusedNodeId === nodeId) return;
-        let layoutNode = findNode(this.treeState?.rootNode, nodeId);
+        // a floating block that is given the focus comes to the front
+        const raised = this.raiseFloatingNode(nodeId);
+        if (this.focusedNodeId === nodeId) {
+            if (raised) {
+                this.commitTreeState();
+            }
+            return;
+        }
+        let layoutNode = findNode(this.treeState?.rootNode, nodeId) ?? this.getFloatingNode(nodeId)?.node;
         if (!layoutNode) {
             const ephemeralNode = this.getter(this.ephemeralNode);
             if (ephemeralNode?.id === nodeId) {
@@ -1254,7 +1846,7 @@ export class LayoutModel {
      * @param nodeId The id of the node that is being closed.
      */
     async closeNode(nodeId: string) {
-        const nodeToDelete = findNode(this.treeState.rootNode, nodeId);
+        const nodeToDelete = findNode(this.treeState.rootNode, nodeId) ?? this.getFloatingNode(nodeId)?.node;
         if (!nodeToDelete) {
             // TODO: clean up the ephemeral node handling
             // The ephemeral node is not in the tree, so we need to handle it separately.

@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 import { Atom, WritableAtom } from "jotai";
 import { CSSProperties } from "react";
@@ -303,8 +304,32 @@ export interface LayoutNode {
 
 export type LayoutTreeStateSetter = (value: LayoutState) => void;
 
+/**
+ * A block that floats above the tiles. It is a leaf like any other, with a rectangle of its own instead of a place
+ * in the tree.
+ */
+export interface FloatingNode {
+    node: LayoutNode;
+    /**
+     * In fractions of the layout container.
+     */
+    rect: Dimensions;
+}
+
 export type LayoutTreeState = {
     rootNode: LayoutNode;
+    /**
+     * The floating blocks, in stacking order: the last one is on top.
+     */
+    floatingNodes?: FloatingNode[];
+    /**
+     * The part of the layout container that the tiles fill, in fractions of it. Unset when they fill all of it.
+     */
+    tileRect?: Dimensions;
+    /**
+     * Where the last floating block was when it was closed, in fractions of the layout container.
+     */
+    lastFloatRect?: Dimensions;
     focusedNodeId?: string;
     magnifiedNodeId?: string;
     /**
@@ -379,6 +404,23 @@ export interface LayoutNodeAdditionalProps {
     resizeHandles?: ResizeHandleProps[];
 }
 
+/**
+ * Something that is resized by its own edges rather than by a divider inside the tree: a floating block, or the area
+ * that the tiles fill.
+ */
+export interface BoxFrameProps {
+    /**
+     * The id of the floating node, or TilesBoxId.
+     */
+    id: string;
+    floating: boolean;
+    /**
+     * In CSS pixels, relative to the layout container.
+     */
+    rect: Dimensions;
+    zIndex: number | string;
+}
+
 export interface NodeModel {
     additionalProps: Atom<LayoutNodeAdditionalProps>;
     innerRect: Atom<CSSProperties>;
@@ -393,9 +435,11 @@ export interface NodeModel {
     isMagnified: Atom<boolean>;
     anyMagnified: Atom<boolean>;
     isEphemeral: Atom<boolean>;
+    isFloating: Atom<boolean>;
     ready: Atom<boolean>;
     disablePointerEvents: Atom<boolean>;
     toggleMagnify: () => void;
+    toggleFloating: () => void;
     focusNode: () => void;
     onClose: () => void;
     dragHandleRef?: React.RefObject<HTMLDivElement>;

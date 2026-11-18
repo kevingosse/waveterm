@@ -37,7 +37,9 @@ Nothing counts as working until it has been seen working in the app.
 1. `task build:backend` after Go changes (it also regenerates the TypeScript bindings). `npx tsc --noEmit` and
    `npx vitest run` after frontend changes.
 2. Start the dev instance with a debugging port: set `WAVELET_CDP_PORT=9333`, then `task electron:winquickdev`.
-3. Look at it: `node ops/cdp.mjs screenshot active <file.png>`, `node ops/cdp.mjs eval active "<expression>"`. The
+3. Look at it: `node ops/cdp.mjs screenshot active <file.png>`, `node ops/cdp.mjs eval active "<expression>"`. Use it:
+   `node ops/cdp.mjs key active <chord>` and `node ops/cdp.mjs drag active <x,y> <x,y>` send real keys and mouse
+   drags, which is how anything that is dragged gets checked (calling the model directly proves less). The
    renderer exposes `globalStore`, `globalAtoms`, `RpcApi`, `TabRpcClient`, `WOS` and, for the most recently created
    terminal, `window.term`.
 4. For anything that affects startup or the shell, measure before and after: `node ops/measure-prompt.mjs` (a new

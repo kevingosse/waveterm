@@ -1,5 +1,6 @@
 // Copyright 2024, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 .tile-layout {
     position: relative;
@@ -101,9 +102,72 @@
             }
         }
 
-        &:not(:only-child) .tile-leaf {
+        // set when the layout holds more than one block
+        &.spaced .tile-leaf {
             padding: calc(var(--gap-size-px) / 2);
         }
+
+        &.floating {
+            // the shadow is what tells a floating block from a tile; it is drawn inside the gap, where the
+            // block's own edge is
+            .tile-leaf {
+                filter: drop-shadow(0 6px 18px rgb(0 0 0 / 60%));
+            }
+        }
+    }
+
+    // The handles on the edges of a floating block and of the area the tiles fill. Their place and their z-index
+    // come from the layout model.
+    .box-handle {
+        .line {
+            visibility: hidden;
+            position: absolute;
+            background-color: var(--accent-color);
+        }
+        &:hover .line {
+            visibility: visible;
+
+            // as for .resize-handle: a delay, not an animation
+            transition-property: visibility !important;
+            transition-delay: var(--animation-time-s) !important;
+        }
+
+        &.box-handle-left,
+        &.box-handle-right {
+            cursor: ew-resize;
+            .line {
+                top: 0;
+                bottom: 0;
+                left: calc(50% - 1px);
+                width: 2px;
+            }
+        }
+        &.box-handle-top,
+        &.box-handle-bottom {
+            cursor: ns-resize;
+            .line {
+                left: 0;
+                right: 0;
+                top: calc(50% - 1px);
+                height: 2px;
+            }
+        }
+        &.box-handle-topleft,
+        &.box-handle-bottomright {
+            cursor: nwse-resize;
+        }
+        &.box-handle-topright,
+        &.box-handle-bottomleft {
+            cursor: nesw-resize;
+        }
+    }
+
+    .snap-preview {
+        z-index: var(--zindex-layout-snap-preview);
+        background-color: var(--accent-color);
+        opacity: 0.25;
+        border-radius: calc(var(--block-border-radius) + 2px);
+        pointer-events: none;
     }
 
     --block-blur: 2px;

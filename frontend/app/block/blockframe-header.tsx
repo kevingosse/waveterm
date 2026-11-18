@@ -35,11 +35,18 @@ function handleHeaderContextMenu(
     e.preventDefault();
     e.stopPropagation();
     const magnified = globalStore.get(nodeModel.isMagnified);
+    const floating = globalStore.get(nodeModel.isFloating);
     const menu: ContextMenuItem[] = [
         {
             label: magnified ? "Un-Magnify Block" : "Magnify Block",
             click: () => {
                 nodeModel.toggleMagnify();
+            },
+        },
+        {
+            label: floating ? "Dock Block into Layout" : "Float Block",
+            click: () => {
+                nodeModel.toggleFloating();
             },
         },
         { type: "separator" },
@@ -117,6 +124,7 @@ const HeaderEndIcons = React.memo(({ viewModel, nodeModel, blockId }: HeaderEndI
     const endIconButtons = util.useAtomValueSafe(viewModel?.endIconButtons);
     const magnified = jotai.useAtomValue(nodeModel.isMagnified);
     const ephemeral = jotai.useAtomValue(nodeModel.isEphemeral);
+    const floating = jotai.useAtomValue(nodeModel.isFloating);
     const numLeafs = jotai.useAtomValue(nodeModel.numLeafs);
     const magnifyDisabled = numLeafs <= 1;
     const showSplitButtons = jotai.useAtomValue(blockEnv.getSettingsKeyAtom("term:showsplitbuttons"));
@@ -176,6 +184,17 @@ const HeaderEndIcons = React.memo(({ viewModel, nodeModel, blockId }: HeaderEndI
         };
         endIconsElem.push(<IconButton key="add-to-layout" decl={addToLayoutDecl} />);
     } else {
+        if (floating) {
+            const dockDecl: IconButtonDecl = {
+                elemtype: "iconbutton",
+                icon: "table-columns",
+                title: "Dock into Layout",
+                click: () => {
+                    nodeModel.toggleFloating();
+                },
+            };
+            endIconsElem.push(<IconButton key="dock" decl={dockDecl} />);
+        }
         endIconsElem.push(
             <OptMagnifyButton
                 key="unmagnify"

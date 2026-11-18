@@ -713,6 +713,13 @@ declare global {
         append?: boolean;
     };
 
+    // waveobj.FloatingNodeData
+    type FloatingNodeData = {
+        nodeid: string;
+        blockid: string;
+        rect: LayoutRect;
+    };
+
     // wconfig.FullConfigType
     type FullConfigType = {
         settings: SettingsType;
@@ -776,6 +783,14 @@ declare global {
         position?: string;
     };
 
+    // waveobj.LayoutRect
+    type LayoutRect = {
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+    };
+
     // waveobj.LayoutState
     type LayoutState = WaveObj & {
         rootnode?: any;
@@ -783,6 +798,9 @@ declare global {
         focusednodeid?: string;
         leaforder?: LeafOrderEntry[];
         pendingbackendactions?: LayoutActionData[];
+        floatingnodes?: FloatingNodeData[];
+        tilerect?: LayoutRect;
+        lastfloatrect?: LayoutRect;
     };
 
     // waveobj.LeafOrderEntry

@@ -1,5 +1,6 @@
 // Copyright 2024, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 .block {
     display: flex;
@@ -279,6 +280,12 @@
         &.ephemeral {
             background-color: rgb(from var(--block-bg-color) r g b / var(--magnified-block-opacity));
             backdrop-filter: blur(var(--magnified-block-blur));
+        }
+
+        // A floating block lies over other blocks, whose text must not show through what is read in it. On the
+        // colour the window has behind the tiles, it looks like a tile.
+        &.floating:not(.magnified) {
+            background-color: var(--main-bg-color);
         }
 
         .connstatus-overlay {

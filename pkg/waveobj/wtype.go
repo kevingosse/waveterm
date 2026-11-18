@@ -222,6 +222,21 @@ type LeafOrderEntry struct {
 	BlockId string `json:"blockid"`
 }
 
+// A rectangle in fractions (0 to 1) of the tab's layout area, so that it keeps its place when the window is resized.
+type LayoutRect struct {
+	Left   float64 `json:"left"`
+	Top    float64 `json:"top"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+}
+
+// A block that floats above the tiled layout. The order of the list is the stacking order, topmost last.
+type FloatingNodeData struct {
+	NodeId  string     `json:"nodeid"`
+	BlockId string     `json:"blockid"`
+	Rect    LayoutRect `json:"rect"`
+}
+
 type LayoutState struct {
 	OID                   string              `json:"oid"`
 	Version               int                 `json:"version"`
@@ -230,7 +245,12 @@ type LayoutState struct {
 	FocusedNodeId         string              `json:"focusednodeid,omitempty"`
 	LeafOrder             *[]LeafOrderEntry   `json:"leaforder,omitempty"`
 	PendingBackendActions *[]LayoutActionData `json:"pendingbackendactions,omitempty"`
-	Meta                  MetaMapType         `json:"meta,omitempty"`
+	FloatingNodes         *[]FloatingNodeData `json:"floatingnodes,omitempty"`
+	// the part of the layout area that the tiles fill; absent when they fill all of it
+	TileRect *LayoutRect `json:"tilerect,omitempty"`
+	// where the last floating block was when it was closed, so that the next one opens in the same place
+	LastFloatRect *LayoutRect `json:"lastfloatrect,omitempty"`
+	Meta          MetaMapType `json:"meta,omitempty"`
 }
 
 func (*LayoutState) GetOType() string {

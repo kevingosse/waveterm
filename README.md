@@ -61,6 +61,7 @@ node ops\cdp.mjs list                       # the tabs of the running instance
 node ops\cdp.mjs screenshot active shot.png # what the visible tab looks like
 node ops\cdp.mjs eval active "document.title"
 node ops\cdp.mjs key active Ctrl+Shift+ArrowLeft
+node ops\cdp.mjs drag active 1723,600 870,600 # press, move and release the mouse (CSS pixels)
 node ops\measure-prompt.mjs                 # time from new terminal block to first prompt
 ```
 

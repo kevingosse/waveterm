@@ -41,8 +41,9 @@ The maintainer has said more than once that they would rather have a native term
 demand than a terminal built on one. Before deciding: a prototype, as small as it can be made, that opens a native
 window, restores the first tab's terminal from the existing database and reaches a live prompt, measured the same
 way. It settles what the figures above only estimate, and shows what the terminal looks like when it is not
-xterm.js. Phase 3 waits for that decision, since window management built on the Electron front end would have to be
-built twice.
+xterm.js. Phase 3 was meant to wait for that decision, since window management built on the Electron front end would
+have to be built twice. It was started anyway (see there): the maintainer asked for it, and the part that would be
+built twice is kept small.
 
 **Hard fork.** Upstream is a remote to cherry-pick from, not something to stay mergeable with. Removing features makes
 merges conflict everywhere, and upstream's pace is slow enough that little is lost.
@@ -170,12 +171,54 @@ renderer), and 0.13 s until the first frame is on screen.
 6. A restored terminal shows the screen of its previous session for a moment before the new shell's output replaces
    it. Decide what it should show instead.
 
-## Phase 3: windows and agents
+## Phase 3: windows and agents (started)
 
-To be designed, once it is settled which front end it is built on (see the first decision). Starting points: what
-`wsh` can already do for an agent (open previews, editors, web views, read scrollback), what is awkward about it
-(addressing blocks is clumsy; each call costs about 60 ms, nearly all of it process start), and what window
-management lacks today.
+Two things got in the way every day, and the maintainer asked for them before the front-end question was settled.
+In a full-screen window a tab with a single terminal is too wide to read an agent's output in, and the only way to
+make it narrower was to split it with a terminal nobody needed. And a document an agent opens with `wsh view` became
+a tile: it rearranged the tab when it came and again when it went.
+
+Both come from one rule of a tiling layout: the tiles always fill the tab, so every block's size depends on which
+other blocks exist. The maintainer's wish was for something closer to ordinary windows, "MDI windows with snap". What
+was built on 2026-11-18 is a first iteration of that, to be tried and corrected:
+
+- **Empty space is allowed.** The area the tiles fill can be resized by its outer edges, like a window. What is left
+  over stays empty. Double-clicking an edge gives the tiles the whole tab back.
+- **Blocks can float.** A floating block is a window above the tiles: moved by its header, resized by its edges and
+  corners, brought to the front when it gets the focus. It snaps to the edges, halves and thirds of the tab, to the
+  tiled area, to single tiles and to other floating blocks. Pushing the pointer against the left or right edge of
+  the tab while moving one drops it into the empty space on that side (or that half), the corners give quarters, the
+  top edge the whole tab. Two boxes that share an edge are resized together by it.
+- **What `wsh` opens never rearranges the tab.** `wsh view`, `wsh edit`, `wsh web open` and the like open a floating
+  block: in the largest empty space, else stacked on the floating block that is already there (stepped off it, so
+  that both headers show), else where the last one was closed, else in the middle. Closing it moves nothing.
+- A new block asked for from the app (Alt+N, a widget) fills empty space if there is some, as a floating block, and
+  becomes a tile as before if there is none. Splitting a floating block halves its rectangle. A block is floated or
+  docked from its header menu; a floating one also has a button for it.
+
+Tiles were kept, rather than turning every block into a window, because the tabs that are split on purpose work, and
+there a block that closes should give its space back. Saved layouts are untouched: the tree is stored as before, with
+the floating blocks and the tiled area's rectangle next to it, as fractions of the tab. The rules are pure functions
+over rectangles (`frontend/layout/lib/floating.ts`), which is the part a native front end would take over as it is.
+Rex, the terminal multiplexer from the author of Ghostty that the maintainer pointed to, has tiles and "scriptable
+floating panes" too; nothing more about its layout is public.
+
+Known gaps, in the order they are likely to matter:
+
+- A new tab starts at full width. There is no default width and no shortcut to change it.
+- `wsh view` of a file that is already open opens it a second time instead of bringing it forward, and `wsh` has no
+  way to ask for a tile or for a place.
+- A floating block is docked by menu, to where the tree puts new tiles, not by dragging it to where it should go.
+- A floating block that is completely covered by another can only be reached by its number (Ctrl+Shift+digit).
+- Nothing can be moved or snapped from the keyboard.
+- Going back to a build from before this (`ops/rollback.ps1`) closes the floating blocks: that build takes blocks
+  that are not in the tree for orphans and deletes them.
+
+Not measured: start-up. The layout model does a little more when a tab loads; `ops/measure-startup.mjs` needs a
+packaged build and should be run before this is deployed.
+
+Still to be designed, for agents: what `wsh` can already do (open previews, editors, web views, read scrollback) is
+awkward in places. Addressing blocks is clumsy, and each call costs about 60 ms, nearly all of it process start.
 
 Known small thing: the app never sets a Windows AppUserModelID, so a `wsh notify` toast is attributed to Electron's
 generated id instead of to "Wavelet" with its icon. Fixing it means setting the id in the app and on the Start menu
