@@ -1,5 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+// Modified by the Wavelet fork; modifications Copyright 2026, Wavelet contributors.
 
 package windowservice
 
@@ -50,17 +51,14 @@ func (svc *WindowService) CreateWindow(ctx context.Context, winSize *waveobj.Win
 	return window, nil
 }
 
-func (svc *WindowService) SetWindowPosAndSize_Meta() tsgenmeta.MethodMeta {
+func (svc *WindowService) SetWindowPlacement_Meta() tsgenmeta.MethodMeta {
 	return tsgenmeta.MethodMeta{
-		Desc:     "set window position and size",
-		ArgNames: []string{"ctx", "windowId", "pos", "size"},
+		Desc:     "set where a window is and whether it is maximized or fullscreen; a null pos or size is left as it was",
+		ArgNames: []string{"ctx", "windowId", "pos", "size", "isMaximized", "isFullScreen"},
 	}
 }
 
-func (ws *WindowService) SetWindowPosAndSize(ctx context.Context, windowId string, pos *waveobj.Point, size *waveobj.WinSize) (waveobj.UpdatesRtnType, error) {
-	if pos == nil && size == nil {
-		return nil, nil
-	}
+func (ws *WindowService) SetWindowPlacement(ctx context.Context, windowId string, pos *waveobj.Point, size *waveobj.WinSize, isMaximized bool, isFullScreen bool) (waveobj.UpdatesRtnType, error) {
 	ctx = waveobj.ContextWithUpdates(ctx)
 	win, err := wstore.DBMustGet[*waveobj.Window](ctx, windowId)
 	if err != nil {
@@ -72,6 +70,8 @@ func (ws *WindowService) SetWindowPosAndSize(ctx context.Context, windowId strin
 	if size != nil {
 		win.WinSize = *size
 	}
+	win.IsMaximized = isMaximized
+	win.IsFullScreen = isFullScreen
 	win.IsNew = false
 	err = wstore.DBUpdate(ctx, win)
 	if err != nil {

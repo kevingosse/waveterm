@@ -145,6 +145,11 @@ export class WaveBrowserWindow extends BaseWindow {
     private canClose: boolean;
     private deleteAllowed: boolean;
     private actionQueue: WindowActionQueueEntry[];
+    // the state the window was last left in, which it is given when it is first shown
+    private maximizeOnShow: boolean;
+    private fullScreenOnShow: boolean;
+    // a fullscreen window does not report as maximized, so this is remembered from before it became fullscreen
+    private maximizedBelowFullScreen: boolean;
 
     constructor(waveWindow: WaveWindow, fullConfig: FullConfigType, opts: WindowOpts) {
         const settings = fullConfig?.settings;
@@ -212,11 +217,9 @@ export class WaveBrowserWindow extends BaseWindow {
         }
 
         const fullscreenOnLaunch = fullConfig?.settings["window:fullscreenonlaunch"];
-        if (fullscreenOnLaunch && opts.foregroundWindow) {
-            this.once("show", () => {
-                this.setFullScreen(true);
-            });
-        }
+        this.maximizeOnShow = waveWindow.ismaximized ?? false;
+        this.fullScreenOnShow = (waveWindow.isfullscreen ?? false) || (fullscreenOnLaunch && opts.foregroundWindow);
+        this.maximizedBelowFullScreen = this.maximizeOnShow;
         this.actionQueue = [];
         this.waveWindowId = waveWindow.oid;
         this.workspaceId = waveWindow.workspaceid;
@@ -231,22 +234,19 @@ export class WaveBrowserWindow extends BaseWindow {
             }
             this.finalizePositioning();
         }, 1000);
-        this.on(
-            // @ts-expect-error -- "resize" event with debounce handler not in Electron type definitions
-            "resize",
-            debounce(400, (e) => this.mainResizeHandler(e))
-        );
+        const savePlacement = debounce(400, () => this.savePlacement());
+        this.on("resize", savePlacement);
+        this.on("move", savePlacement);
+        this.on("maximize", savePlacement);
+        this.on("unmaximize", savePlacement);
+        this.on("enter-full-screen", savePlacement);
+        this.on("leave-full-screen", savePlacement);
         this.on("resize", () => {
             if (this.isDestroyed()) {
                 return;
             }
             this.activeTabView?.positionTabOnScreen(this.getContentBounds());
         });
-        this.on(
-            // @ts-expect-error -- "move" event with debounce handler not in Electron type definitions
-            "move",
-            debounce(400, (e) => this.mainResizeHandler(e))
-        );
         this.on("enter-full-screen", async () => {
             if (this.isDestroyed()) {
                 return;
@@ -622,19 +622,50 @@ export class WaveBrowserWindow extends BaseWindow {
         }
     }
 
-    private async mainResizeHandler(_: any) {
-        if (this == null || this.isDestroyed() || this.fullScreen) {
+    // maximize() puts a hidden window on screen already maximized. show() followed by maximize() would let it be seen
+    // at its normal size first.
+    show() {
+        const maximize = this.maximizeOnShow;
+        const fullScreen = this.fullScreenOnShow;
+        this.maximizeOnShow = false;
+        this.fullScreenOnShow = false;
+        if (maximize) {
+            this.maximize();
+        }
+        super.show();
+        if (fullScreen) {
+            this.setFullScreen(true);
+        }
+    }
+
+    private async savePlacement() {
+        if (this == null || this.isDestroyed()) {
             return;
         }
-        const bounds = this.getBounds();
+        // minimized, or not yet in the state it was left in: what the window reports now is not what to come back to
+        if (this.isMinimized() || this.maximizeOnShow || this.fullScreenOnShow) {
+            return;
+        }
+        const isFullScreen = this.isFullScreen();
+        let pos: Point = null;
+        let size: WinSize = null;
+        if (!isFullScreen) {
+            // a fullscreen window answers neither question, so both keep the answer from before it became fullscreen
+            const bounds = this.getNormalBounds();
+            pos = { x: bounds.x, y: bounds.y };
+            size = { width: bounds.width, height: bounds.height };
+            this.maximizedBelowFullScreen = this.isMaximized();
+        }
         try {
-            await WindowService.SetWindowPosAndSize(
+            await WindowService.SetWindowPlacement(
                 this.waveWindowId,
-                { x: bounds.x, y: bounds.y },
-                { width: bounds.width, height: bounds.height }
+                pos,
+                size,
+                this.maximizedBelowFullScreen,
+                isFullScreen
             );
         } catch (e) {
-            console.log("error sending new window bounds to backend", e);
+            console.log("error sending new window placement to backend", e);
         }
     }
 

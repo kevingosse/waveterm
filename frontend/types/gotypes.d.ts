@@ -1569,6 +1569,8 @@ declare global {
         isnew?: boolean;
         pos: Point;
         winsize: WinSize;
+        ismaximized?: boolean;
+        isfullscreen?: boolean;
         lastfocusts: number;
     };
 

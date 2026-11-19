@@ -142,14 +142,16 @@ func (*Client) GetOType() string {
 
 // stores the ui-context of the window, points to a workspace containing the actual data being displayed in the window
 type Window struct {
-	OID         string      `json:"oid"`
-	Version     int         `json:"version"`
-	WorkspaceId string      `json:"workspaceid"`
-	IsNew       bool        `json:"isnew,omitempty"` // set when a window is created on the backend so the FE can size it properly.  cleared on first resize
-	Pos         Point       `json:"pos"`
-	WinSize     WinSize     `json:"winsize"`
-	LastFocusTs int64       `json:"lastfocusts"`
-	Meta        MetaMapType `json:"meta"`
+	OID          string      `json:"oid"`
+	Version      int         `json:"version"`
+	WorkspaceId  string      `json:"workspaceid"`
+	IsNew        bool        `json:"isnew,omitempty"` // set when a window is created on the backend so the FE can size it properly.  cleared on first resize
+	Pos          Point       `json:"pos"`             // Pos and WinSize are those of the normal state, which a maximized or fullscreen window goes back to
+	WinSize      WinSize     `json:"winsize"`
+	IsMaximized  bool        `json:"ismaximized,omitempty"` // when IsFullScreen is set too: maximized underneath
+	IsFullScreen bool        `json:"isfullscreen,omitempty"`
+	LastFocusTs  int64       `json:"lastfocusts"`
+	Meta         MetaMapType `json:"meta"`
 }
 
 func (*Window) GetOType() string {

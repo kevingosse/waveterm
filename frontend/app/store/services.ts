@@ -136,10 +136,10 @@ export class WindowServiceType {
         return callBackendService(this?.waveEnv, "window", "GetWindow", Array.from(arguments))
     }
 
-    // set window position and size
+    // set where a window is and whether it is maximized or fullscreen; a null pos or size is left as it was
     // @returns object updates
-    SetWindowPosAndSize(windowId: string, pos: Point, size: WinSize): Promise<void> {
-        return callBackendService(this?.waveEnv, "window", "SetWindowPosAndSize", Array.from(arguments))
+    SetWindowPlacement(windowId: string, pos: Point, size: WinSize, isMaximized: boolean, isFullScreen: boolean): Promise<void> {
+        return callBackendService(this?.waveEnv, "window", "SetWindowPlacement", Array.from(arguments))
     }
     SwitchWorkspace(windowId: string, workspaceId: string): Promise<Workspace> {
         return callBackendService(this?.waveEnv, "window", "SwitchWorkspace", Array.from(arguments))
